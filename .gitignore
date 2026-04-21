@@ -1,0 +1,10 @@
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+build/
+Debug/
+Release/
+.vscode/
+*.ioc
