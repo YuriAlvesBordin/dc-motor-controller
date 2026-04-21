@@ -4,7 +4,6 @@ static void set_duty(void *hw, float duty_norm)
 {
     DcMotor_Stm32Hw_t *h = (DcMotor_Stm32Hw_t *)hw;
     if (!h || !h->htim) return;
-    /* ARR is read at runtime so the lib doesn't need to know the timer resolution */
     uint32_t arr = h->htim->Instance->ARR;
     __HAL_TIM_SET_COMPARE(h->htim, h->channel, (uint32_t)(duty_norm * arr));
 }
