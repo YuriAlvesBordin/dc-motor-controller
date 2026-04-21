@@ -26,8 +26,6 @@ static void s_latch_fault(DcMotor_Handle_t *hdm, DcMotor_State_t s, DcMotor_Stat
     hdm->stall_active = false;
 }
 
-/* ------------------------------------------------------------------ */
-
 static float s_ramp(DcMotor_Handle_t *hdm, float dt_s)
 {
     float err   = hdm->target_duty - hdm->current_duty;
@@ -44,7 +42,6 @@ static float s_ramp(DcMotor_Handle_t *hdm, float dt_s)
 
     float next = hdm->current_duty + step;
 
-    /* snap to target to avoid hunting at the end of the ramp */
     if ((err > 0.0f && next > hdm->target_duty) ||
         (err < 0.0f && next < hdm->target_duty))
         next = hdm->target_duty;
@@ -65,8 +62,6 @@ static float s_pid(DcMotor_Handle_t *hdm, float dt_s, float rpm)
                                  hdm->pid_cfg.integral_min,
                                  hdm->pid_cfg.integral_max);
 
-    /* filter the derivative to cut encoder noise — raw d/dt at 10 ms with
-       optical encoders is basically a noise amplifier */
     float d_raw  = (err - hdm->pid_prev_error) / dt_s;
     float alpha  = s_clamp(hdm->pid_cfg.deriv_filter_alpha, 0.0f, 1.0f);
     hdm->pid_filtered_deriv = alpha * d_raw + (1.0f - alpha) * hdm->pid_filtered_deriv;
@@ -81,7 +76,6 @@ static void s_stall_watchdog(DcMotor_Handle_t *hdm, uint32_t tick_ms, float rpm)
 {
     if (hdm->safety_cfg.stall_timeout_ms == 0U) return;
 
-    /* no point watching if the commanded duty is near zero */
     if (hdm->current_duty < hdm->safety_cfg.min_duty_for_stall) {
         hdm->stall_active = false;
         return;
@@ -98,8 +92,6 @@ static void s_stall_watchdog(DcMotor_Handle_t *hdm, uint32_t tick_ms, float rpm)
         hdm->stall_active = false;
     }
 }
-
-/* ------------------------------------------------------------------ */
 
 DcMotor_Status_t DcMotor_Init(DcMotor_Handle_t             *hdm,
                               const DcMotor_Port_t         *port,
