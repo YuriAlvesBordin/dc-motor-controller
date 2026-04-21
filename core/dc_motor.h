@@ -10,7 +10,6 @@
 extern "C" {
 #endif
 
-/* --- tuneable defaults, override via -D flags if needed --- */
 #ifndef DC_MOTOR_DEFAULT_KP
 #define DC_MOTOR_DEFAULT_KP             0.1f
 #endif
@@ -55,7 +54,6 @@ typedef struct {
     float dt_s;
     float output_min, output_max;
     float integral_min, integral_max;
-    /* derivative low-pass alpha: 0.0 = off, 1.0 = raw (amplifies encoder jitter) */
     float deriv_filter_alpha;
 } DcMotor_PidConfig_t;
 
@@ -70,8 +68,6 @@ typedef struct {
     float    stall_min_rpm;
     float    min_duty_for_stall;    /* don't check stall below this duty */
 } DcMotor_SafetyConfig_t;
-
-/* ---------------------------------------------------------- */
 
 typedef enum {
     DC_MOTOR_IDLE        = 0,
@@ -89,8 +85,6 @@ typedef enum {
     DC_MOTOR_ERR_STALL    = -4,
     DC_MOTOR_ERR_FAULT    = -5,
 } DcMotor_Status_t;
-
-/* ---------------------------------------------------------- */
 
 typedef struct DcMotor_Handle_t DcMotor_Handle_t;
 
@@ -121,8 +115,6 @@ struct DcMotor_Handle_t {
     bool     first_update;
 };
 
-/* ---------------------------------------------------------- */
-
 /*
  * Pass NULL to pid/ramp/safety to get the defaults above.
  * hw is passed straight through to port callbacks — cast it
@@ -141,7 +133,7 @@ DcMotor_Status_t DcMotor_Stop(DcMotor_Handle_t *hdm);
 void             DcMotor_EmergencyStop(DcMotor_Handle_t *hdm);
 
 /*
- * Call this from your 10 ms timer / RTOS task.
+ * Call this from your timer / RTOS task.
  * current_rpm: whatever your encoder/hall driver last computed.
  *              Ignored in open-loop mode, but still used by the stall watchdog.
  */
