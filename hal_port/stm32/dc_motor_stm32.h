@@ -8,7 +8,6 @@
 extern "C" {
 #endif
 
-/* Populate this and pass it as the hw pointer in DcMotor_Init. */
 typedef struct {
     TIM_HandleTypeDef *htim;
     uint32_t           channel;
