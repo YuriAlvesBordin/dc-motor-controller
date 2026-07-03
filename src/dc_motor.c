@@ -1,4 +1,4 @@
-#include "../include/dc_motor.h"
+#include "dc_motor.h"
 #include "internal/dc_motor_pid.h"
 #include "internal/dc_motor_ramp.h"
 #include "internal/dc_motor_safety.h"
@@ -150,8 +150,24 @@ void DcMotor_Update(DcMotor_Handle_t *hdm, uint32_t tick_ms, float current_rpm)
 {
     if (!hdm || DcMotor_IsFault(hdm)) return;
 
-    float dt_s = hdm->pid_cfg.dt_s;
+    /* --- Compute real dt_s from tick delta --------------------------------
+     * On the first call last_tick_ms is 0 (set by memset in Init), so we
+     * fall back to pid_cfg.dt_s to avoid a huge or zero delta on boot.
+     * Every subsequent call uses the actual elapsed time so the PID and
+     * ramp stay accurate even when Update() is called at irregular rates.
+     * ---------------------------------------------------------------------- */
+    float dt_s;
+    if (hdm->first_update) {
+        dt_s              = hdm->pid_cfg.dt_s;   /* safe nominal fallback */
+        hdm->first_update = false;
+    } else {
+        uint32_t elapsed_ms = tick_ms - hdm->last_tick_ms;  /* handles wrap-around */
+        dt_s = (elapsed_ms > 0U) ? (float)elapsed_ms * 0.001f
+                                 : hdm->pid_cfg.dt_s;
+    }
+    hdm->last_tick_ms = tick_ms;
 
+    /* --- Control loop ----------------------------------------------------- */
     if (hdm->closed_loop) {
         float duty = DcMotor_Pid_Compute(&hdm->pid_cfg, &hdm->pid_st,
                                          dt_s, hdm->rpm_setpoint, current_rpm);
@@ -170,12 +186,10 @@ void DcMotor_Update(DcMotor_Handle_t *hdm, uint32_t tick_ms, float current_rpm)
         else                                             hdm->state = DC_MOTOR_IDLE;
     }
 
+    /* --- Stall watchdog --------------------------------------------------- */
     DcMotor_Safety_Update(&hdm->safety_cfg, &hdm->safety_st,
                           tick_ms, hdm->current_duty, current_rpm,
                           s_on_stall_fault, hdm);
-
-    hdm->last_tick_ms = tick_ms;
-    hdm->first_update = false;
 }
 
 void DcMotor_SetPidConfig(DcMotor_Handle_t *hdm, const DcMotor_PidConfig_t *cfg)
