@@ -1,3 +1,4 @@
+#include "dc_motor_config.h"
 #include "dc_motor.h"
 #include "internal/dc_motor_pid.h"
 #include "internal/dc_motor_ramp.h"
@@ -42,6 +43,7 @@ DcMotor_Status_t DcMotor_Init(DcMotor_Handle_t             *hdm,
     hdm->port = port;
     hdm->hw   = hw;
 
+#if DC_MOTOR_ENABLE_PID
     if (pid) {
         if (pid->dt_s <= 0.0f)                     return DC_MOTOR_ERR_PARAM;
         if (pid->output_min > pid->output_max)     return DC_MOTOR_ERR_PARAM;
@@ -52,7 +54,12 @@ DcMotor_Status_t DcMotor_Init(DcMotor_Handle_t             *hdm,
     } else {
         DcMotor_Pid_DefaultConfig(&hdm->pid_cfg);
     }
+    DcMotor_Pid_Reset(&hdm->pid_st);
+#else
+    (void)pid;
+#endif
 
+#if DC_MOTOR_ENABLE_RAMP
     if (ramp) {
         if (ramp->accel_rate <= 0.0f || ramp->decel_rate <= 0.0f)
             return DC_MOTOR_ERR_PARAM;
@@ -62,15 +69,20 @@ DcMotor_Status_t DcMotor_Init(DcMotor_Handle_t             *hdm,
     } else {
         DcMotor_Ramp_DefaultConfig(&hdm->ramp_cfg);
     }
+#else
+    (void)ramp;
+#endif
 
+#if DC_MOTOR_ENABLE_SAFETY
     if (safety) {
         hdm->safety_cfg = *safety;
     } else {
         DcMotor_Safety_DefaultConfig(&hdm->safety_cfg);
     }
-
-    DcMotor_Pid_Reset(&hdm->pid_st);
     DcMotor_Safety_Reset(&hdm->safety_st);
+#else
+    (void)safety;
+#endif
 
     hdm->state        = DC_MOTOR_IDLE;
     hdm->last_status  = DC_MOTOR_OK;
@@ -121,7 +133,9 @@ void DcMotor_EmergencyStop(DcMotor_Handle_t *hdm)
     hdm->closed_loop = false;
     s_apply_duty(hdm, 0.0f);
     DcMotor_ResetPid(hdm);
+#if DC_MOTOR_ENABLE_SAFETY
     DcMotor_Safety_Reset(&hdm->safety_st);
+#endif
     if (!DcMotor_IsFault(hdm)) hdm->state = DC_MOTOR_IDLE;
 }
 
@@ -132,11 +146,15 @@ DcMotor_Status_t DcMotor_SetRpmSetpoint(DcMotor_Handle_t *hdm, float rpm_sp)
 
     if (rpm_sp <= 0.0f) return DcMotor_Stop(hdm);
 
+#if DC_MOTOR_ENABLE_PID
     hdm->rpm_setpoint = rpm_sp;
     hdm->closed_loop  = true;
     if (hdm->state == DC_MOTOR_IDLE) hdm->state = DC_MOTOR_RUNNING;
-
     return (hdm->last_status = DC_MOTOR_OK);
+#else
+    (void)rpm_sp;
+    return DC_MOTOR_ERR_PARAM;
+#endif
 }
 
 void DcMotor_SetClosedLoop(DcMotor_Handle_t *hdm, bool enabled)
@@ -161,50 +179,72 @@ void DcMotor_Update(DcMotor_Handle_t *hdm, uint32_t tick_ms, float current_rpm)
     }
     hdm->last_tick_ms = tick_ms;
 
+#if DC_MOTOR_ENABLE_PID
     if (hdm->closed_loop) {
         float duty = DcMotor_Pid_Compute(&hdm->pid_cfg, &hdm->pid_st,
                                          dt_s, hdm->rpm_setpoint, current_rpm);
         duty = s_clamp(duty, hdm->pid_cfg.output_min, hdm->pid_cfg.output_max);
         s_apply_duty(hdm, duty);
         hdm->state = (hdm->current_duty > 0.0f) ? DC_MOTOR_RUNNING : DC_MOTOR_IDLE;
-    } else {
+    } else
+#endif
+    {
+#if DC_MOTOR_ENABLE_RAMP
         float next = DcMotor_Ramp_Step(&hdm->ramp_cfg,
                                        hdm->current_duty,
                                        hdm->target_duty,
                                        dt_s);
         s_apply_duty(hdm, next);
-
+#else
+        s_apply_duty(hdm, hdm->target_duty);
+#endif
         if      (hdm->current_duty != hdm->target_duty) hdm->state = DC_MOTOR_RAMPING;
         else if (hdm->current_duty > 0.0f)              hdm->state = DC_MOTOR_RUNNING;
         else                                             hdm->state = DC_MOTOR_IDLE;
     }
 
+#if DC_MOTOR_ENABLE_SAFETY
     DcMotor_Safety_Update(&hdm->safety_cfg, &hdm->safety_st,
                           tick_ms, hdm->current_duty, current_rpm,
                           s_on_stall_fault, hdm);
+#else
+    (void)current_rpm;
+#endif
 }
 
 void DcMotor_SetPidConfig(DcMotor_Handle_t *hdm, const DcMotor_PidConfig_t *cfg)
 {
+#if DC_MOTOR_ENABLE_PID
     if (!hdm || !cfg) return;
     if (cfg->dt_s <= 0.0f || cfg->output_min > cfg->output_max) return;
     if (cfg->integral_min > cfg->integral_max) return;
     hdm->pid_cfg = *cfg;
     hdm->pid_cfg.deriv_filter_alpha =
         s_clamp(hdm->pid_cfg.deriv_filter_alpha, 0.0f, 1.0f);
+#else
+    (void)hdm; (void)cfg;
+#endif
 }
 
 void DcMotor_SetRampConfig(DcMotor_Handle_t *hdm, const DcMotor_RampConfig_t *cfg)
 {
+#if DC_MOTOR_ENABLE_RAMP
     if (!hdm || !cfg || cfg->accel_rate <= 0.0f || cfg->decel_rate <= 0.0f) return;
     hdm->ramp_cfg = *cfg;
     hdm->ramp_cfg.smooth_alpha = s_clamp(hdm->ramp_cfg.smooth_alpha, 0.0f, 1.0f);
+#else
+    (void)hdm; (void)cfg;
+#endif
 }
 
 void DcMotor_SetSafetyConfig(DcMotor_Handle_t *hdm, const DcMotor_SafetyConfig_t *cfg)
 {
+#if DC_MOTOR_ENABLE_SAFETY
     if (!hdm || !cfg) return;
     hdm->safety_cfg = *cfg;
+#else
+    (void)hdm; (void)cfg;
+#endif
 }
 
 DcMotor_Status_t DcMotor_ClearFault(DcMotor_Handle_t *hdm)
@@ -217,8 +257,9 @@ DcMotor_Status_t DcMotor_ClearFault(DcMotor_Handle_t *hdm)
     hdm->target_duty  = 0.0f;
     hdm->closed_loop  = false;
     DcMotor_ResetPid(hdm);
+#if DC_MOTOR_ENABLE_SAFETY
     DcMotor_Safety_Reset(&hdm->safety_st);
-
+#endif
     if (hdm->port->start_pwm) hdm->port->start_pwm(hdm->hw);
     s_apply_duty(hdm, 0.0f);
 
@@ -227,6 +268,10 @@ DcMotor_Status_t DcMotor_ClearFault(DcMotor_Handle_t *hdm)
 
 void DcMotor_ResetPid(DcMotor_Handle_t *hdm)
 {
+#if DC_MOTOR_ENABLE_PID
     if (!hdm) return;
     DcMotor_Pid_Reset(&hdm->pid_st);
+#else
+    (void)hdm;
+#endif
 }
