@@ -1,4 +1,4 @@
-#include "../include/dc_motor_autotune.h"
+#include "dc_motor_autotune.h"
 #include "internal/dc_motor_types.h"
 #include "internal/dc_motor_pid.h"
 #include <string.h>
@@ -67,7 +67,7 @@ static DcMotor_AutotuneState_t s_calc(DcMotor_AutotuneCtx_t *ctx)
 
     /* Tu estimated from average cycle time — placeholder; a proper
        implementation would track zero-crossing timestamps. */
-    float tu_s = ctx->cfg.dt_s * 20.0f; /* conservative fallback */
+    float tu_s = ctx->cfg.dt_s * 20.0f;
 
     ctx->result.ku   = ku;
     ctx->result.tu_s = tu_s;
@@ -75,9 +75,9 @@ static DcMotor_AutotuneState_t s_calc(DcMotor_AutotuneCtx_t *ctx)
     /* Tyreus-Luyben */
     DcMotor_PidConfig_t *p = &ctx->tuned_pid;
     DcMotor_Pid_DefaultConfig(p);
-    p->kp = ku / 3.2f;
-    p->ki = p->kp / (2.87f * tu_s);
-    p->kd = p->kp * tu_s / 11.4f;
+    p->kp   = ku / 3.2f;
+    p->ki   = p->kp / (2.87f * tu_s);
+    p->kd   = p->kp * tu_s / 11.4f;
     p->dt_s = ctx->cfg.dt_s;
 
     ctx->state = DC_AUTOTUNE_DONE;
@@ -114,13 +114,12 @@ DcMotor_AutotuneState_t DcMotor_Autotune_Update(DcMotor_AutotuneCtx_t *ctx,
         if ((tick_ms - ctx->relay_start_ms) >= ctx->cfg.relay_timeout_ms)
             return s_finish_err(ctx, DC_AUTOTUNE_ERR_TIMEOUT);
 
-        float sp = ctx->cfg.rpm_target;
+        float sp  = ctx->cfg.rpm_target;
         float amp = ctx->cfg.relay_amp;
 
-        if (current_rpm > ctx->peak_rpm) ctx->peak_rpm = current_rpm;
+        if (current_rpm > ctx->peak_rpm)   ctx->peak_rpm   = current_rpm;
         if (current_rpm < ctx->valley_rpm) ctx->valley_rpm = current_rpm;
 
-        /* Toggle relay on zero-crossings around setpoint */
         if (ctx->relay_output > 0.0f && current_rpm > sp + amp) {
             ctx->relay_output = -ctx->cfg.relay_duty_step;
             float half_amp = (ctx->peak_rpm - ctx->valley_rpm) / 2.0f;
@@ -132,8 +131,7 @@ DcMotor_AutotuneState_t DcMotor_Autotune_Update(DcMotor_AutotuneCtx_t *ctx,
             ctx->relay_output = ctx->cfg.relay_duty_step;
         }
 
-        float base = 0.5f;
-        DcMotor_SetDuty(ctx->motor, base + ctx->relay_output);
+        DcMotor_SetDuty(ctx->motor, 0.5f + ctx->relay_output);
 
         if (ctx->cycle_count >= 8U)
             return s_calc(ctx);

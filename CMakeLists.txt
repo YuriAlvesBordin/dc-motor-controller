@@ -30,7 +30,10 @@ target_include_directories(dc_motor_autotune
     PRIVATE src/internal/
 )
 
-target_link_libraries(dc_motor_autotune PUBLIC dc_motor)
+target_link_libraries(dc_motor_autotune
+    PUBLIC  dc_motor
+    PRIVATE m          # math.h (M_PI) — required on GCC/Clang hosted targets
+)
 
 # -----------------------------------------------------------------------
 # STM32 HAL port (optional — only add when targeting STM32)
