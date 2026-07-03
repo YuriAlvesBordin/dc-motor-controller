@@ -1,18 +1,4 @@
-#ifndef DC_MOTOR_PORT_H
-#define DC_MOTOR_PORT_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef struct {
-    void (*set_pwm_duty)(void *hw, float duty_norm);
-    void (*start_pwm)   (void *hw);
-    void (*stop_pwm)    (void *hw);
-} DcMotor_Port_t;
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* DC_MOTOR_PORT_H */
+/* Redirects to the canonical location. Include <dc_motor_port.h> from
+   the include/ directory instead of this file.
+   Kept here for backwards compatibility with existing STM32 port files. */
+#include "../include/dc_motor_port.h"
