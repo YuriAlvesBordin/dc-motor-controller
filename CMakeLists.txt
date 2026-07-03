@@ -3,9 +3,6 @@ project(dc-motor-controller C)
 
 set(CMAKE_C_STANDARD 99)
 
-# -----------------------------------------------------------------------
-# Core library
-# -----------------------------------------------------------------------
 add_library(dc_motor STATIC
     src/dc_motor.c
     src/dc_motor_pid.c
@@ -14,13 +11,10 @@ add_library(dc_motor STATIC
 )
 
 target_include_directories(dc_motor
-    PUBLIC  include/          # dc_motor.h, dc_motor_autotune.h, dc_motor_port.h
-    PRIVATE src/internal/     # dc_motor_types.h, dc_motor_pid.h, ...
+    PUBLIC  include/
+    PRIVATE src/internal/
 )
 
-# -----------------------------------------------------------------------
-# Optional: autotune module (link separately if you need it)
-# -----------------------------------------------------------------------
 add_library(dc_motor_autotune STATIC
     src/dc_motor_autotune.c
 )
@@ -32,12 +26,9 @@ target_include_directories(dc_motor_autotune
 
 target_link_libraries(dc_motor_autotune
     PUBLIC  dc_motor
-    PRIVATE m          # math.h (M_PI) — required on GCC/Clang hosted targets
+    PRIVATE m
 )
 
-# -----------------------------------------------------------------------
-# STM32 HAL port (optional — only add when targeting STM32)
-# -----------------------------------------------------------------------
 # add_library(dc_motor_stm32 STATIC
 #     hal_port/stm32/dc_motor_stm32.c
 # )

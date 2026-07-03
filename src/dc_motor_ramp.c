@@ -24,11 +24,9 @@ float DcMotor_Ramp_Step(const DcMotor_RampConfig_t *cfg,
     else
         linear = s_clamp(current_duty - delta, target_duty, current_duty);
 
-    /* S-curve blending */
     float next = cfg->smooth_alpha * linear
                + (1.0f - cfg->smooth_alpha) * current_duty;
 
-    /* Snap to target when very close to avoid endless crawl */
     if ((target_duty > current_duty && next >= target_duty) ||
         (target_duty < current_duty && next <= target_duty))
         next = target_duty;

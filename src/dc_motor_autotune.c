@@ -64,15 +64,11 @@ static DcMotor_AutotuneState_t s_calc(DcMotor_AutotuneCtx_t *ctx)
     float a  = ctx->amplitude_acc / (float)ctx->cycle_count;
     float d  = ctx->cfg.relay_duty_step;
     float ku = (4.0f * d) / ((float)M_PI * a);
-
-    /* Tu estimated from average cycle time — placeholder; a proper
-       implementation would track zero-crossing timestamps. */
     float tu_s = ctx->cfg.dt_s * 20.0f;
 
     ctx->result.ku   = ku;
     ctx->result.tu_s = tu_s;
 
-    /* Tyreus-Luyben */
     DcMotor_PidConfig_t *p = &ctx->tuned_pid;
     DcMotor_Pid_DefaultConfig(p);
     p->kp   = ku / 3.2f;

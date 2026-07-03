@@ -1,11 +1,6 @@
 #ifndef DC_MOTOR_RAMP_H
 #define DC_MOTOR_RAMP_H
 
-/**
- * @file  dc_motor_ramp.h
- * @brief Internal ramp/S-curve subsystem — do NOT include directly.
- */
-
 #include "dc_motor_types.h"
 
 #ifdef __cplusplus
@@ -22,4 +17,4 @@ void  DcMotor_Ramp_DefaultConfig(DcMotor_RampConfig_t *cfg);
 }
 #endif
 
-#endif /* DC_MOTOR_RAMP_H */
+#endif

@@ -19,12 +19,10 @@ float DcMotor_Pid_Compute(const DcMotor_PidConfig_t *cfg,
 
     float error = setpoint - measured;
 
-    /* Integral with anti-windup clamp */
     st->integral += cfg->ki * error * dt_s;
     if (st->integral > cfg->integral_max) st->integral = cfg->integral_max;
     if (st->integral < cfg->integral_min) st->integral = cfg->integral_min;
 
-    /* Derivative with low-pass filter */
     float raw_deriv = (error - st->prev_error) / dt_s;
     st->filtered_deriv = cfg->deriv_filter_alpha * raw_deriv
                        + (1.0f - cfg->deriv_filter_alpha) * st->filtered_deriv;

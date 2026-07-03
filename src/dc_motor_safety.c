@@ -17,8 +17,8 @@ void DcMotor_Safety_Update(const DcMotor_SafetyConfig_t *cfg,
                            void                         *fault_ctx)
 {
     if (!cfg || !st) return;
-    if (cfg->stall_timeout_ms == 0U) return;                    /* watchdog disabled */
-    if (current_duty < cfg->min_duty_for_stall) {               /* motor not driven   */
+    if (cfg->stall_timeout_ms == 0U) return;
+    if (current_duty < cfg->min_duty_for_stall) {
         DcMotor_Safety_Reset(st);
         return;
     }

@@ -1,11 +1,6 @@
 #ifndef DC_MOTOR_SAFETY_H
 #define DC_MOTOR_SAFETY_H
 
-/**
- * @file  dc_motor_safety.h
- * @brief Internal stall-watchdog subsystem — do NOT include directly.
- */
-
 #include "dc_motor_types.h"
 
 #ifdef __cplusplus
@@ -26,4 +21,4 @@ void DcMotor_Safety_DefaultConfig (DcMotor_SafetyConfig_t *cfg);
 }
 #endif
 
-#endif /* DC_MOTOR_SAFETY_H */
+#endif

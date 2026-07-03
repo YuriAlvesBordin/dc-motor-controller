@@ -1,12 +1,6 @@
 #ifndef DC_MOTOR_PID_H
 #define DC_MOTOR_PID_H
 
-/**
- * @file  dc_motor_pid.h
- * @brief Internal PID subsystem — do NOT include directly from application code.
- *        Use <dc_motor.h> instead.
- */
-
 #include "dc_motor_types.h"
 
 #ifdef __cplusplus
@@ -25,4 +19,4 @@ void  DcMotor_Pid_DefaultConfig(DcMotor_PidConfig_t *cfg);
 }
 #endif
 
-#endif /* DC_MOTOR_PID_H */
+#endif

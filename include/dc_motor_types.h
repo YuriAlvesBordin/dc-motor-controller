@@ -1,25 +1,12 @@
 #ifndef DC_MOTOR_TYPES_H
 #define DC_MOTOR_TYPES_H
 
-/**
- * @file  dc_motor_types.h
- * @brief Public shared types: config structs, enums, status codes,
- *        and runtime state types needed by the public API.
- *
- * Include this header (or dc_motor.h which includes it) in your
- * application code.  Do NOT include src/internal/ headers directly.
- */
-
 #include <stdint.h>
 #include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* ------------------------------------------------------------------ */
-/*  Default tuneable constants (override via compiler -D flags)        */
-/* ------------------------------------------------------------------ */
 
 #ifndef DC_MOTOR_DEFAULT_KP
 #define DC_MOTOR_DEFAULT_KP                 0.1f
@@ -58,10 +45,6 @@ extern "C" {
 #define DC_MOTOR_DEFAULT_MIN_DUTY_FOR_STALL 0.1f
 #endif
 
-/* ------------------------------------------------------------------ */
-/*  Configuration structs                                              */
-/* ------------------------------------------------------------------ */
-
 typedef struct {
     float kp, ki, kd;
     float dt_s;
@@ -82,10 +65,6 @@ typedef struct {
     float    min_duty_for_stall;
 } DcMotor_SafetyConfig_t;
 
-/* ------------------------------------------------------------------ */
-/*  Runtime state types (needed by DcMotor_Handle_t)                  */
-/* ------------------------------------------------------------------ */
-
 typedef struct {
     float    integral;
     float    prev_error;
@@ -98,10 +77,6 @@ typedef struct {
 } DcMotor_SafetyState_t;
 
 typedef void (*DcMotor_FaultCb_t)(void *ctx);
-
-/* ------------------------------------------------------------------ */
-/*  State machine & status codes                                       */
-/* ------------------------------------------------------------------ */
 
 typedef enum {
     DC_MOTOR_IDLE        = 0,
@@ -124,4 +99,4 @@ typedef enum {
 }
 #endif
 
-#endif /* DC_MOTOR_TYPES_H */
+#endif
