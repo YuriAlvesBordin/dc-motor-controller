@@ -17,6 +17,7 @@ Designed for real embedded systems: no dynamic allocation, no RTOS dependency, n
 | PID auto-tuner | Relay feedback (Åström–Hägglund) + Tyreus–Luyben rules |
 | HAL abstraction | Core is 100 % platform-agnostic via three function pointers |
 | STM32 HAL port | Ready-to-use port for STM32 PWM timers |
+| Compile-time configuration | Each subsystem can be individually enabled or stripped at build time |
 
 ---
 
@@ -25,6 +26,7 @@ Designed for real embedded systems: no dynamic allocation, no RTOS dependency, n
 ```
 dc-motor-controller/
 ├── include/
+│   ├── dc_motor_config.h     # Compile-time feature flags and default values
 │   ├── dc_motor.h            # Public API and handle definition
 │   ├── dc_motor_types.h      # Config structs, enums, status codes
 │   ├── dc_motor_port.h       # HAL contract (3 function pointers)
@@ -72,6 +74,76 @@ gcc -Idc-motor-controller/include \
 ```
 
 If using the auto-tuner, also add `src/dc_motor_autotune.c` and link with `-lm`.
+
+---
+
+## Compile-Time Configuration
+
+All build-time knobs live in `include/dc_motor_config.h`. Every value can be overridden without editing the file by passing `-D` flags to the compiler.
+
+### Feature Flags
+
+Each subsystem can be independently enabled or stripped from the binary.
+
+| Flag | Default | Effect when set to `0` |
+|---|---|---|
+| `DC_MOTOR_ENABLE_PID` | `1` | Removes PID compute, closed-loop path, and PID state from the handle. `SetRpmSetpoint` returns `DC_MOTOR_ERR_PARAM`. |
+| `DC_MOTOR_ENABLE_RAMP` | `1` | Removes S-curve ramp. `SetDuty` writes the target directly to PWM without ramping. |
+| `DC_MOTOR_ENABLE_SAFETY` | `1` | Removes stall watchdog. `ClearFault` and safety state are no-ops. |
+| `DC_MOTOR_ENABLE_AUTOTUNE` | `1` | Removes the auto-tuner and its `<math.h>` dependency. |
+
+**Example — bare-minimum open-loop build (no encoder, no watchdog):**
+```sh
+gcc -Idc-motor-controller/include \
+    -DDC_MOTOR_ENABLE_PID=0 \
+    -DDC_MOTOR_ENABLE_SAFETY=0 \
+    -DDC_MOTOR_ENABLE_AUTOTUNE=0 \
+    dc-motor-controller/src/dc_motor.c \
+    dc-motor-controller/src/dc_motor_ramp.c \
+    your_app.c -o app
+```
+
+When a subsystem is disabled, its `.c` file can still be included in the build — it compiles to an empty translation unit.
+
+### Default Value Overrides
+
+All numeric defaults are defined in `dc_motor_config.h` and follow the same `#ifndef` / `#define` pattern, so any of them can be overridden with a `-D` flag.
+
+**PID defaults:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `DC_MOTOR_DEFAULT_KP` | `0.1` | Proportional gain |
+| `DC_MOTOR_DEFAULT_KI` | `0.01` | Integral gain |
+| `DC_MOTOR_DEFAULT_KD` | `0.005` | Derivative gain |
+| `DC_MOTOR_DEFAULT_DT_S` | `0.01` | Nominal sample period (s) |
+| `DC_MOTOR_DERIV_FILTER_ALPHA` | `0.3` | Derivative low-pass coefficient |
+
+**Ramp defaults:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `DC_MOTOR_DEFAULT_ACCEL_RATE` | `1.0` | Acceleration rate (duty/s) |
+| `DC_MOTOR_DEFAULT_DECEL_RATE` | `2.0` | Deceleration rate (duty/s) |
+| `DC_MOTOR_RAMP_SMOOTH_ALPHA` | `0.5` | S-curve blending factor (1.0 = linear) |
+
+**Safety defaults:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `DC_MOTOR_DEFAULT_STALL_TIMEOUT_MS` | `500` | Time at low RPM before fault is latched |
+| `DC_MOTOR_DEFAULT_STALL_MIN_RPM` | `30.0` | RPM threshold for stall detection |
+| `DC_MOTOR_DEFAULT_MIN_DUTY_FOR_STALL` | `0.1` | Duty below this skips the stall check |
+
+**Auto-tuner defaults:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `DC_AUTOTUNE_DEFAULT_RELAY_AMP` | `50.0` | Relay switching amplitude (RPM) |
+| `DC_AUTOTUNE_DEFAULT_RELAY_DUTY_STEP` | `0.15` | Relay output step size |
+| `DC_AUTOTUNE_DEFAULT_TIMEOUT_MS` | `30000` | Maximum relay phase duration (ms) |
+| `DC_AUTOTUNE_MIN_CYCLES` | `4` | Minimum oscillation cycles before `CALC` |
+| `DC_AUTOTUNE_WARMUP_MS` | `2000` | Warmup phase duration (ms) |
 
 ---
 
@@ -217,42 +289,6 @@ IDLE ──────────────────────► RAMPI
 
 ---
 
-## Configuration Reference
-
-All defaults can be overridden at compile time with `-D` flags.
-
-### `DcMotor_PidConfig_t`
-
-| Field | Default | Flag | Description |
-|---|---|---|---|
-| `kp` | `0.1` | `DC_MOTOR_DEFAULT_KP` | Proportional gain |
-| `ki` | `0.01` | `DC_MOTOR_DEFAULT_KI` | Integral gain |
-| `kd` | `0.005` | `DC_MOTOR_DEFAULT_KD` | Derivative gain |
-| `dt_s` | `0.01` | `DC_MOTOR_DEFAULT_DT_S` | Nominal sample period (s) — used only on the first `Update()` call |
-| `output_min` | `0.0` | — | Output lower clamp |
-| `output_max` | `1.0` | — | Output upper clamp |
-| `integral_min` | `-0.5` | — | Anti-windup lower clamp |
-| `integral_max` | `0.5` | — | Anti-windup upper clamp |
-| `deriv_filter_alpha` | `0.3` | `DC_MOTOR_DERIV_FILTER_ALPHA` | Derivative low-pass coefficient (0 = maximum filtering, 1 = no filter) |
-
-### `DcMotor_RampConfig_t`
-
-| Field | Default | Flag | Description |
-|---|---|---|---|
-| `accel_rate` | `1.0` duty/s | `DC_MOTOR_DEFAULT_ACCEL_RATE` | Maximum acceleration rate |
-| `decel_rate` | `2.0` duty/s | `DC_MOTOR_DEFAULT_DECEL_RATE` | Maximum deceleration rate |
-| `smooth_alpha` | `0.5` | `DC_MOTOR_RAMP_SMOOTH_ALPHA` | S-curve blending factor (1.0 = linear) |
-
-### `DcMotor_SafetyConfig_t`
-
-| Field | Default | Flag | Description |
-|---|---|---|---|
-| `stall_timeout_ms` | `500` | `DC_MOTOR_DEFAULT_STALL_TIMEOUT_MS` | Time at low RPM before fault is latched (0 = watchdog disabled) |
-| `stall_min_rpm` | `30.0` | `DC_MOTOR_DEFAULT_STALL_MIN_RPM` | RPM threshold for stall detection |
-| `min_duty_for_stall` | `0.1` | `DC_MOTOR_DEFAULT_MIN_DUTY_FOR_STALL` | Duty below this value skips the stall check |
-
----
-
 ## PID Auto-Tuner
 
 Finds optimal PID gains autonomously using **relay feedback** (Åström–Hägglund) and **Tyreus–Luyben** gain rules.
@@ -310,16 +346,6 @@ void motor_task(void)
         DcMotor_Update(&motor, t, rpm);
 }
 ```
-
-### `DcMotor_AutotuneCfg_t`
-
-| Field | Default | Description |
-|---|---|---|
-| `rpm_target` | — | **Required.** Representative operating RPM |
-| `relay_amp` | `50` RPM | Relay switching amplitude around `rpm_target` |
-| `relay_duty_step` | `0.15` | Relay output step size (`d` in the `Ku` formula) |
-| `relay_timeout_ms` | `30000` | Maximum relay phase duration before abort |
-| `dt_s` | `0.01` | Must match `Update()` call period |
 
 ### Auto-Tuner API
 
