@@ -29,8 +29,8 @@
 #ifndef DC_MOTOR_DEFAULT_DT_S
 #define DC_MOTOR_DEFAULT_DT_S            0.1f
 #endif
-#ifndef DC_MOTOR_DERIV_FILTER_ALPHA
-#define DC_MOTOR_DERIV_FILTER_ALPHA      0.3f
+#ifndef DC_DERIV_FILTER_ALPHA
+#define DC_DERIV_FILTER_ALPHA            0.3f
 #endif
 
 #ifndef DC_MOTOR_DEFAULT_ACCEL_RATE
@@ -51,6 +51,12 @@
 #endif
 #ifndef DC_MOTOR_DEFAULT_MIN_DUTY_FOR_STALL
 #define DC_MOTOR_DEFAULT_MIN_DUTY_FOR_STALL 0.1f
+#endif
+
+/* Full-scale RPM used by the autotune warmup feedforward.
+ * Override this with your motor's actual maximum RPM. */
+#ifndef DC_MOTOR_DEFAULT_MAX_RPM
+#define DC_MOTOR_DEFAULT_MAX_RPM         3000.0f
 #endif
 
 #ifndef DC_AUTOTUNE_DEFAULT_RELAY_AMP
