@@ -1,11 +1,18 @@
 #ifndef DC_MOTOR_H
 #define DC_MOTOR_H
 
+/**
+ * @file  dc_motor.h
+ * @brief Public API for the DC motor controller library.
+ *
+ * This is the ONLY header application code should include (plus
+ * dc_motor_autotune.h if the optional auto-tuner is used).
+ * Internal subsystem headers (src/internal/) must never be
+ * included directly from application code.
+ */
+
 #include "dc_motor_port.h"
-#include "../src/internal/dc_motor_types.h"
-#include "../src/internal/dc_motor_pid.h"
-#include "../src/internal/dc_motor_ramp.h"
-#include "../src/internal/dc_motor_safety.h"
+#include "dc_motor_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,9 +20,7 @@ extern "C" {
 
 /**
  * @brief  Motor controller handle.
- *         Contains the HAL port, hardware reference, and the state of
- *         every subsystem (PID, ramp, safety).  Initialise with
- *         DcMotor_Init(); treat as opaque after that.
+ *         Initialise with DcMotor_Init(); treat as opaque after that.
  */
 typedef struct DcMotor_Handle_t DcMotor_Handle_t;
 
@@ -69,7 +74,7 @@ DcMotor_Status_t DcMotor_Stop          (DcMotor_Handle_t *hdm);
 void             DcMotor_EmergencyStop  (DcMotor_Handle_t *hdm);
 
 /* ------------------------------------------------------------------ */
-/*  Periodic update  (call from timer / RTOS task)                    */
+/*  Periodic update  (call from timer / RTOS task)                     */
 /* ------------------------------------------------------------------ */
 
 void DcMotor_Update(DcMotor_Handle_t *hdm, uint32_t tick_ms, float current_rpm);

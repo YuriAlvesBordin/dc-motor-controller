@@ -3,8 +3,8 @@
 
 /**
  * @file  dc_motor_pid.h
- * @brief Internal PID subsystem — do NOT include directly.
- *        Use <dc_motor.h> from your application code.
+ * @brief Internal PID subsystem — do NOT include directly from application code.
+ *        Use <dc_motor.h> instead.
  */
 
 #include "dc_motor_types.h"
@@ -12,12 +12,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct {
-    float integral;
-    float prev_error;
-    float filtered_deriv;
-} DcMotor_PidState_t;
 
 void  DcMotor_Pid_Reset        (DcMotor_PidState_t *st);
 float DcMotor_Pid_Compute      (const DcMotor_PidConfig_t *cfg,

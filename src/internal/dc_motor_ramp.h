@@ -3,8 +3,7 @@
 
 /**
  * @file  dc_motor_ramp.h
- * @brief Internal S-Curve ramp subsystem — do NOT include directly.
- *        Use <dc_motor.h> from your application code.
+ * @brief Internal ramp/S-curve subsystem — do NOT include directly.
  */
 
 #include "dc_motor_types.h"

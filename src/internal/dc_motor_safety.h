@@ -4,7 +4,6 @@
 /**
  * @file  dc_motor_safety.h
  * @brief Internal stall-watchdog subsystem — do NOT include directly.
- *        Use <dc_motor.h> from your application code.
  */
 
 #include "dc_motor_types.h"
@@ -12,13 +11,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct {
-    uint32_t stall_start_ms;
-    bool     stall_active;
-} DcMotor_SafetyState_t;
-
-typedef void (*DcMotor_FaultCb_t)(void *ctx);
 
 void DcMotor_Safety_Update        (const DcMotor_SafetyConfig_t *cfg,
                                     DcMotor_SafetyState_t        *st,
