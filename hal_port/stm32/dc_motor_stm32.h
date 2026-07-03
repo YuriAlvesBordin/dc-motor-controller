@@ -19,4 +19,4 @@ const DcMotor_Port_t *DcMotor_GetStm32Port(void);
 }
 #endif
 
-#endif /* DC_MOTOR_STM32_H */
+#endif

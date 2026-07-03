@@ -1,9 +1,8 @@
 #include "dc_motor.h"
+#include "internal/dc_motor_pid.h"
+#include "internal/dc_motor_ramp.h"
+#include "internal/dc_motor_safety.h"
 #include <string.h>
-
-/* ------------------------------------------------------------------ */
-/*  Internal helpers                                                   */
-/* ------------------------------------------------------------------ */
 
 static float s_clamp(float v, float lo, float hi)
 {
@@ -18,7 +17,6 @@ static void s_apply_duty(DcMotor_Handle_t *hdm, float duty)
     hdm->port->set_pwm_duty(hdm->hw, hdm->current_duty);
 }
 
-/** Fault-latch callback — passed to the safety module as a function pointer. */
 static void s_on_stall_fault(void *ctx)
 {
     DcMotor_Handle_t *hdm = (DcMotor_Handle_t *)ctx;
@@ -29,10 +27,6 @@ static void s_on_stall_fault(void *ctx)
     s_apply_duty(hdm, 0.0f);
     DcMotor_ResetPid(hdm);
 }
-
-/* ------------------------------------------------------------------ */
-/*  Lifecycle                                                          */
-/* ------------------------------------------------------------------ */
 
 DcMotor_Status_t DcMotor_Init(DcMotor_Handle_t             *hdm,
                               const DcMotor_Port_t         *port,
@@ -48,7 +42,6 @@ DcMotor_Status_t DcMotor_Init(DcMotor_Handle_t             *hdm,
     hdm->port = port;
     hdm->hw   = hw;
 
-    /* PID */
     if (pid) {
         if (pid->dt_s <= 0.0f)                     return DC_MOTOR_ERR_PARAM;
         if (pid->output_min > pid->output_max)     return DC_MOTOR_ERR_PARAM;
@@ -60,7 +53,6 @@ DcMotor_Status_t DcMotor_Init(DcMotor_Handle_t             *hdm,
         DcMotor_Pid_DefaultConfig(&hdm->pid_cfg);
     }
 
-    /* Ramp */
     if (ramp) {
         if (ramp->accel_rate <= 0.0f || ramp->decel_rate <= 0.0f)
             return DC_MOTOR_ERR_PARAM;
@@ -71,14 +63,12 @@ DcMotor_Status_t DcMotor_Init(DcMotor_Handle_t             *hdm,
         DcMotor_Ramp_DefaultConfig(&hdm->ramp_cfg);
     }
 
-    /* Safety */
     if (safety) {
         hdm->safety_cfg = *safety;
     } else {
         DcMotor_Safety_DefaultConfig(&hdm->safety_cfg);
     }
 
-    /* Reset sub-module runtime states */
     DcMotor_Pid_Reset(&hdm->pid_st);
     DcMotor_Safety_Reset(&hdm->safety_st);
 
@@ -91,10 +81,6 @@ DcMotor_Status_t DcMotor_Init(DcMotor_Handle_t             *hdm,
 
     return DC_MOTOR_OK;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Control                                                            */
-/* ------------------------------------------------------------------ */
 
 DcMotor_Status_t DcMotor_SetDuty(DcMotor_Handle_t *hdm, float duty)
 {
@@ -160,20 +146,24 @@ void DcMotor_SetClosedLoop(DcMotor_Handle_t *hdm, bool enabled)
     if (!enabled) { DcMotor_ResetPid(hdm); hdm->rpm_setpoint = 0.0f; }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Periodic update                                                    */
-/* ------------------------------------------------------------------ */
-
 void DcMotor_Update(DcMotor_Handle_t *hdm, uint32_t tick_ms, float current_rpm)
 {
     if (!hdm || DcMotor_IsFault(hdm)) return;
 
-    float dt_s = hdm->pid_cfg.dt_s;
+    float dt_s;
+    if (hdm->first_update) {
+        dt_s              = hdm->pid_cfg.dt_s;
+        hdm->first_update = false;
+    } else {
+        uint32_t elapsed_ms = tick_ms - hdm->last_tick_ms;
+        dt_s = (elapsed_ms > 0U) ? (float)elapsed_ms * 0.001f
+                                 : hdm->pid_cfg.dt_s;
+    }
+    hdm->last_tick_ms = tick_ms;
 
     if (hdm->closed_loop) {
         float duty = DcMotor_Pid_Compute(&hdm->pid_cfg, &hdm->pid_st,
-                                         dt_s,
-                                         hdm->rpm_setpoint, current_rpm);
+                                         dt_s, hdm->rpm_setpoint, current_rpm);
         duty = s_clamp(duty, hdm->pid_cfg.output_min, hdm->pid_cfg.output_max);
         s_apply_duty(hdm, duty);
         hdm->state = (hdm->current_duty > 0.0f) ? DC_MOTOR_RUNNING : DC_MOTOR_IDLE;
@@ -189,18 +179,10 @@ void DcMotor_Update(DcMotor_Handle_t *hdm, uint32_t tick_ms, float current_rpm)
         else                                             hdm->state = DC_MOTOR_IDLE;
     }
 
-    /* Safety watchdog — calls s_on_stall_fault() if stall is confirmed */
     DcMotor_Safety_Update(&hdm->safety_cfg, &hdm->safety_st,
                           tick_ms, hdm->current_duty, current_rpm,
                           s_on_stall_fault, hdm);
-
-    hdm->last_tick_ms = tick_ms;
-    hdm->first_update = false;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Runtime configuration setters                                     */
-/* ------------------------------------------------------------------ */
 
 void DcMotor_SetPidConfig(DcMotor_Handle_t *hdm, const DcMotor_PidConfig_t *cfg)
 {
@@ -224,10 +206,6 @@ void DcMotor_SetSafetyConfig(DcMotor_Handle_t *hdm, const DcMotor_SafetyConfig_t
     if (!hdm || !cfg) return;
     hdm->safety_cfg = *cfg;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Fault handling                                                     */
-/* ------------------------------------------------------------------ */
 
 DcMotor_Status_t DcMotor_ClearFault(DcMotor_Handle_t *hdm)
 {

@@ -8,36 +8,32 @@
 extern "C" {
 #endif
 
-/* ------------------------------------------------------------------ */
-/*  Default tuneable constants (override via compiler -D flags)        */
-/* ------------------------------------------------------------------ */
-
 #ifndef DC_MOTOR_DEFAULT_KP
-#define DC_MOTOR_DEFAULT_KP             0.1f
+#define DC_MOTOR_DEFAULT_KP                 0.1f
 #endif
 #ifndef DC_MOTOR_DEFAULT_KI
-#define DC_MOTOR_DEFAULT_KI             0.01f
+#define DC_MOTOR_DEFAULT_KI                 0.01f
 #endif
 #ifndef DC_MOTOR_DEFAULT_KD
-#define DC_MOTOR_DEFAULT_KD             0.005f
+#define DC_MOTOR_DEFAULT_KD                 0.005f
 #endif
 #ifndef DC_MOTOR_DEFAULT_DT_S
-#define DC_MOTOR_DEFAULT_DT_S           0.01f   /* 10 ms */
+#define DC_MOTOR_DEFAULT_DT_S               0.01f
 #endif
 #ifndef DC_MOTOR_PID_GAIN_SCALE
-#define DC_MOTOR_PID_GAIN_SCALE         0.01f
+#define DC_MOTOR_PID_GAIN_SCALE             0.01f
 #endif
 #ifndef DC_MOTOR_DEFAULT_ACCEL_RATE
-#define DC_MOTOR_DEFAULT_ACCEL_RATE     1.0f    /* duty/s */
+#define DC_MOTOR_DEFAULT_ACCEL_RATE         1.0f
 #endif
 #ifndef DC_MOTOR_DEFAULT_DECEL_RATE
-#define DC_MOTOR_DEFAULT_DECEL_RATE     2.0f
+#define DC_MOTOR_DEFAULT_DECEL_RATE         2.0f
 #endif
 #ifndef DC_MOTOR_RAMP_SMOOTH_ALPHA
-#define DC_MOTOR_RAMP_SMOOTH_ALPHA      0.5f
+#define DC_MOTOR_RAMP_SMOOTH_ALPHA          0.5f
 #endif
 #ifndef DC_MOTOR_DERIV_FILTER_ALPHA
-#define DC_MOTOR_DERIV_FILTER_ALPHA     0.3f
+#define DC_MOTOR_DERIV_FILTER_ALPHA         0.3f
 #endif
 #ifndef DC_MOTOR_DEFAULT_STALL_TIMEOUT_MS
 #define DC_MOTOR_DEFAULT_STALL_TIMEOUT_MS   500U
@@ -49,10 +45,6 @@ extern "C" {
 #define DC_MOTOR_DEFAULT_MIN_DUTY_FOR_STALL 0.1f
 #endif
 
-/* ------------------------------------------------------------------ */
-/*  Configuration structs                                              */
-/* ------------------------------------------------------------------ */
-
 typedef struct {
     float kp, ki, kd;
     float dt_s;
@@ -62,20 +54,29 @@ typedef struct {
 } DcMotor_PidConfig_t;
 
 typedef struct {
-    float accel_rate;     /* duty/s */
+    float accel_rate;
     float decel_rate;
-    float smooth_alpha;   /* 1.0 = linear, <1.0 = S-curve */
+    float smooth_alpha;
 } DcMotor_RampConfig_t;
 
 typedef struct {
-    uint32_t stall_timeout_ms;    /* 0 disables watchdog */
+    uint32_t stall_timeout_ms;
     float    stall_min_rpm;
     float    min_duty_for_stall;
 } DcMotor_SafetyConfig_t;
 
-/* ------------------------------------------------------------------ */
-/*  State machine & status codes                                       */
-/* ------------------------------------------------------------------ */
+typedef struct {
+    float    integral;
+    float    prev_error;
+    float    filtered_deriv;
+} DcMotor_PidState_t;
+
+typedef struct {
+    uint32_t stall_start_ms;
+    bool     stall_active;
+} DcMotor_SafetyState_t;
+
+typedef void (*DcMotor_FaultCb_t)(void *ctx);
 
 typedef enum {
     DC_MOTOR_IDLE        = 0,
@@ -98,4 +99,4 @@ typedef enum {
 }
 #endif
 
-#endif /* DC_MOTOR_TYPES_H */
+#endif
