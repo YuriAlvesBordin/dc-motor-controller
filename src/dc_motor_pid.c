@@ -21,9 +21,9 @@ void DcMotor_Pid_DefaultConfig(DcMotor_PidConfig_t *cfg)
 void DcMotor_Pid_Reset(DcMotor_PidState_t *st)
 {
     if (!st) return;
-    st->integral    = 0.0f;
-    st->prev_error  = 0.0f;
-    st->prev_deriv  = 0.0f;
+    st->integral       = 0.0f;
+    st->prev_error     = 0.0f;
+    st->filtered_deriv = 0.0f;
 }
 
 float DcMotor_Pid_Compute(const DcMotor_PidConfig_t *cfg,
@@ -40,11 +40,11 @@ float DcMotor_Pid_Compute(const DcMotor_PidConfig_t *cfg,
     if (st->integral > cfg->integral_max) st->integral = cfg->integral_max;
     if (st->integral < cfg->integral_min) st->integral = cfg->integral_min;
 
-    float raw_deriv = (error - st->prev_error) / dt_s;
-    float alpha     = cfg->deriv_filter_alpha;
-    float deriv     = alpha * raw_deriv + (1.0f - alpha) * st->prev_deriv;
-    st->prev_deriv  = deriv;
-    st->prev_error  = error;
+    float raw_deriv    = (error - st->prev_error) / dt_s;
+    float alpha        = cfg->deriv_filter_alpha;
+    float deriv        = alpha * raw_deriv + (1.0f - alpha) * st->filtered_deriv;
+    st->filtered_deriv = deriv;
+    st->prev_error     = error;
 
     float out = cfg->kp * error + st->integral + cfg->kd * deriv;
     if (out > cfg->output_max) out = cfg->output_max;
