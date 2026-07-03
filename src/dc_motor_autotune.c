@@ -1,24 +1,12 @@
+#include "dc_motor_config.h"
+
+#if DC_MOTOR_ENABLE_AUTOTUNE
+
 #include "dc_motor_autotune.h"
 #include "internal/dc_motor_types.h"
 #include "internal/dc_motor_pid.h"
 #include <string.h>
 #include <math.h>
-
-#ifndef DC_AUTOTUNE_DEFAULT_RELAY_AMP
-#define DC_AUTOTUNE_DEFAULT_RELAY_AMP       50.0f
-#endif
-#ifndef DC_AUTOTUNE_DEFAULT_RELAY_DUTY_STEP
-#define DC_AUTOTUNE_DEFAULT_RELAY_DUTY_STEP 0.15f
-#endif
-#ifndef DC_AUTOTUNE_DEFAULT_TIMEOUT_MS
-#define DC_AUTOTUNE_DEFAULT_TIMEOUT_MS      30000U
-#endif
-#ifndef DC_AUTOTUNE_MIN_CYCLES
-#define DC_AUTOTUNE_MIN_CYCLES              4U
-#endif
-#ifndef DC_AUTOTUNE_WARMUP_MS
-#define DC_AUTOTUNE_WARMUP_MS               2000U
-#endif
 
 void DcMotor_Autotune_DefaultConfig(DcMotor_AutotuneCfg_t *cfg)
 {
@@ -158,3 +146,5 @@ DcMotor_Status_t DcMotor_Autotune_GetResult(const DcMotor_AutotuneCtx_t *ctx,
     *out = ctx->result;
     return DC_MOTOR_OK;
 }
+
+#endif
