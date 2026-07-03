@@ -48,6 +48,9 @@ void             DcMotor_SetClosedLoop  (DcMotor_Handle_t *hdm, bool enabled);
 DcMotor_Status_t DcMotor_Stop          (DcMotor_Handle_t *hdm);
 void             DcMotor_EmergencyStop  (DcMotor_Handle_t *hdm);
 
+/* Apply duty immediately (bypass ramp/PID) — for auto-tune open-loop phases */
+void             DcMotor_ApplyDuty      (DcMotor_Handle_t *hdm, float duty);
+
 void DcMotor_Update(DcMotor_Handle_t *hdm, uint32_t tick_ms, float current_rpm);
 
 void DcMotor_SetPidConfig   (DcMotor_Handle_t *hdm, const DcMotor_PidConfig_t    *cfg);

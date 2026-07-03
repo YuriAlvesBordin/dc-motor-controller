@@ -18,16 +18,16 @@
 #endif
 
 #ifndef DC_MOTOR_DEFAULT_KP
-#define DC_MOTOR_DEFAULT_KP              0.1f
+#define DC_MOTOR_DEFAULT_KP              1.5f
 #endif
 #ifndef DC_MOTOR_DEFAULT_KI
-#define DC_MOTOR_DEFAULT_KI              0.01f
+#define DC_MOTOR_DEFAULT_KI              0.2f
 #endif
 #ifndef DC_MOTOR_DEFAULT_KD
-#define DC_MOTOR_DEFAULT_KD              0.005f
+#define DC_MOTOR_DEFAULT_KD              0.05f
 #endif
 #ifndef DC_MOTOR_DEFAULT_DT_S
-#define DC_MOTOR_DEFAULT_DT_S            0.01f
+#define DC_MOTOR_DEFAULT_DT_S            0.1f
 #endif
 #ifndef DC_MOTOR_DERIV_FILTER_ALPHA
 #define DC_MOTOR_DERIV_FILTER_ALPHA      0.3f
@@ -54,19 +54,19 @@
 #endif
 
 #ifndef DC_AUTOTUNE_DEFAULT_RELAY_AMP
-#define DC_AUTOTUNE_DEFAULT_RELAY_AMP        50.0f
+#define DC_AUTOTUNE_DEFAULT_RELAY_AMP        20.0f
 #endif
 #ifndef DC_AUTOTUNE_DEFAULT_RELAY_DUTY_STEP
-#define DC_AUTOTUNE_DEFAULT_RELAY_DUTY_STEP  0.15f
+#define DC_AUTOTUNE_DEFAULT_RELAY_DUTY_STEP  0.30f
 #endif
 #ifndef DC_AUTOTUNE_DEFAULT_TIMEOUT_MS
-#define DC_AUTOTUNE_DEFAULT_TIMEOUT_MS       30000U
+#define DC_AUTOTUNE_DEFAULT_TIMEOUT_MS       60000U
 #endif
 #ifndef DC_AUTOTUNE_MIN_CYCLES
 #define DC_AUTOTUNE_MIN_CYCLES               4U
 #endif
 #ifndef DC_AUTOTUNE_WARMUP_MS
-#define DC_AUTOTUNE_WARMUP_MS                2000U
+#define DC_AUTOTUNE_WARMUP_MS                5000U
 #endif
 
 #endif

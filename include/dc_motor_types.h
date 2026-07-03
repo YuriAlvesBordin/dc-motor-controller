@@ -8,41 +8,8 @@
 extern "C" {
 #endif
 
-#ifndef DC_MOTOR_DEFAULT_KP
-#define DC_MOTOR_DEFAULT_KP                 0.1f
-#endif
-#ifndef DC_MOTOR_DEFAULT_KI
-#define DC_MOTOR_DEFAULT_KI                 0.01f
-#endif
-#ifndef DC_MOTOR_DEFAULT_KD
-#define DC_MOTOR_DEFAULT_KD                 0.005f
-#endif
-#ifndef DC_MOTOR_DEFAULT_DT_S
-#define DC_MOTOR_DEFAULT_DT_S               0.01f
-#endif
-#ifndef DC_MOTOR_PID_GAIN_SCALE
-#define DC_MOTOR_PID_GAIN_SCALE             0.01f
-#endif
-#ifndef DC_MOTOR_DEFAULT_ACCEL_RATE
-#define DC_MOTOR_DEFAULT_ACCEL_RATE         1.0f
-#endif
-#ifndef DC_MOTOR_DEFAULT_DECEL_RATE
-#define DC_MOTOR_DEFAULT_DECEL_RATE         2.0f
-#endif
-#ifndef DC_MOTOR_RAMP_SMOOTH_ALPHA
-#define DC_MOTOR_RAMP_SMOOTH_ALPHA          0.5f
-#endif
 #ifndef DC_MOTOR_DERIV_FILTER_ALPHA
-#define DC_MOTOR_DERIV_FILTER_ALPHA         0.3f
-#endif
-#ifndef DC_MOTOR_DEFAULT_STALL_TIMEOUT_MS
-#define DC_MOTOR_DEFAULT_STALL_TIMEOUT_MS   500U
-#endif
-#ifndef DC_MOTOR_DEFAULT_STALL_MIN_RPM
-#define DC_MOTOR_DEFAULT_STALL_MIN_RPM      30.0f
-#endif
-#ifndef DC_MOTOR_DEFAULT_MIN_DUTY_FOR_STALL
-#define DC_MOTOR_DEFAULT_MIN_DUTY_FOR_STALL 0.1f
+#define DC_MOTOR_DERIV_FILTER_ALPHA      0.3f
 #endif
 
 typedef struct {

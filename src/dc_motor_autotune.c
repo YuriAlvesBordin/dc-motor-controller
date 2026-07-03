@@ -52,13 +52,16 @@ static DcMotor_AutotuneState_t s_calc(DcMotor_AutotuneCtx_t *ctx)
     float a  = ctx->amplitude_acc / (float)ctx->cycle_count;
     float d  = ctx->cfg.relay_duty_step;
     float ku = (4.0f * d) / ((float)M_PI * a);
-    float tu_s = ctx->cfg.dt_s * 20.0f;
+    
+    /* Tu = average period between peaks/valleys */
+    float tu_s = (float)(ctx->relay_start_ms - ctx->warmup_start_ms) / 1000.0f / (float)ctx->cycle_count * 2.0f;
 
     ctx->result.ku   = ku;
     ctx->result.tu_s = tu_s;
 
     DcMotor_PidConfig_t *p = &ctx->tuned_pid;
     DcMotor_Pid_DefaultConfig(p);
+    /* Tyreus-Luyben tuning rules for better robustness */
     p->kp   = ku / 3.2f;
     p->ki   = p->kp / (2.87f * tu_s);
     p->kd   = p->kp * tu_s / 11.4f;
@@ -82,7 +85,7 @@ DcMotor_AutotuneState_t DcMotor_Autotune_Update(DcMotor_AutotuneCtx_t *ctx,
 
     case DC_AUTOTUNE_WARMUP:
         if (ctx->warmup_start_ms == 0U) ctx->warmup_start_ms = tick_ms;
-        DcMotor_SetDuty(ctx->motor, 0.5f);
+        DcMotor_ApplyDuty(ctx->motor, 0.5f);
         if ((tick_ms - ctx->warmup_start_ms) >= DC_AUTOTUNE_WARMUP_MS) {
             ctx->state          = DC_AUTOTUNE_RELAY;
             ctx->relay_start_ms = tick_ms;
@@ -115,7 +118,7 @@ DcMotor_AutotuneState_t DcMotor_Autotune_Update(DcMotor_AutotuneCtx_t *ctx,
             ctx->relay_output = ctx->cfg.relay_duty_step;
         }
 
-        DcMotor_SetDuty(ctx->motor, 0.5f + ctx->relay_output);
+        DcMotor_ApplyDuty(ctx->motor, 0.5f + ctx->relay_output);
 
         if (ctx->cycle_count >= 8U)
             return s_calc(ctx);

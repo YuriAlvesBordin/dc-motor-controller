@@ -139,6 +139,13 @@ void DcMotor_EmergencyStop(DcMotor_Handle_t *hdm)
     if (!DcMotor_IsFault(hdm)) hdm->state = DC_MOTOR_IDLE;
 }
 
+/* Apply duty immediately (bypass ramp/PID) — for auto-tune open-loop phases */
+void DcMotor_ApplyDuty(DcMotor_Handle_t *hdm, float duty)
+{
+    if (!hdm) return;
+    s_apply_duty(hdm, duty);
+}
+
 DcMotor_Status_t DcMotor_SetRpmSetpoint(DcMotor_Handle_t *hdm, float rpm_sp)
 {
     if (!hdm) return DC_MOTOR_ERR_NULL_PTR;

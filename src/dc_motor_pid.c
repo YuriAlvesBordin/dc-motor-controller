@@ -13,8 +13,8 @@ void DcMotor_Pid_DefaultConfig(DcMotor_PidConfig_t *cfg)
     cfg->dt_s               = DC_MOTOR_DEFAULT_DT_S;
     cfg->output_min         = 0.0f;
     cfg->output_max         = 1.0f;
-    cfg->integral_min       = -0.5f;
-    cfg->integral_max       = 0.5f;
+    cfg->integral_min       = -1.0f;
+    cfg->integral_max       = 1.0f;
     cfg->deriv_filter_alpha = DC_MOTOR_DERIV_FILTER_ALPHA;
 }
 
