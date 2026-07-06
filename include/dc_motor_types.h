@@ -18,6 +18,10 @@ typedef struct {
     float output_min, output_max;
     float integral_min, integral_max;
     float deriv_filter_alpha;
+    /* Minimum duty feedforward to overcome motor dead-zone in closed-loop.
+     * Added to the PID output whenever rpm_setpoint > 0.
+     * Set to 0.0f to disable. Tune per motor. */
+    float dead_zone_duty;
 } DcMotor_PidConfig_t;
 
 typedef struct {

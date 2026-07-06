@@ -11,11 +11,14 @@ void DcMotor_Pid_DefaultConfig(DcMotor_PidConfig_t *cfg)
     cfg->ki                 = DC_MOTOR_DEFAULT_KI;
     cfg->kd                 = DC_MOTOR_DEFAULT_KD;
     cfg->dt_s               = DC_MOTOR_DEFAULT_DT_S;
+    /* output_min must be 0 here; dead-zone offset is handled separately
+     * via dead_zone_duty so the PID integrator range stays correct. */
     cfg->output_min         = 0.0f;
     cfg->output_max         = 1.0f;
     cfg->integral_min       = -1.0f;
     cfg->integral_max       = 1.0f;
     cfg->deriv_filter_alpha = DC_MOTOR_DERIV_FILTER_ALPHA;
+    cfg->dead_zone_duty     = DC_MOTOR_DEFAULT_DEAD_ZONE_DUTY;
 }
 
 void DcMotor_Pid_Reset(DcMotor_PidState_t *st)

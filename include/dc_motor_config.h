@@ -46,11 +46,22 @@
 #ifndef DC_MOTOR_DEFAULT_STALL_TIMEOUT_MS
 #define DC_MOTOR_DEFAULT_STALL_TIMEOUT_MS  500U
 #endif
+/* Stall RPM threshold - must be set BELOW your minimum desired operating RPM.
+ * Default changed to 10 RPM to avoid false stall detection at low setpoints.
+ * Override this in your project config if needed. */
 #ifndef DC_MOTOR_DEFAULT_STALL_MIN_RPM
-#define DC_MOTOR_DEFAULT_STALL_MIN_RPM     30.0f
+#define DC_MOTOR_DEFAULT_STALL_MIN_RPM     10.0f
 #endif
 #ifndef DC_MOTOR_DEFAULT_MIN_DUTY_FOR_STALL
 #define DC_MOTOR_DEFAULT_MIN_DUTY_FOR_STALL 0.1f
+#endif
+
+/* Minimum duty feedforward applied when running in closed-loop (PID).
+ * This offsets the motor dead-zone so the PID output actually moves the motor.
+ * Tune this to the lowest duty at which your motor reliably starts spinning.
+ * Set to 0.0f to disable. */
+#ifndef DC_MOTOR_DEFAULT_DEAD_ZONE_DUTY
+#define DC_MOTOR_DEFAULT_DEAD_ZONE_DUTY    0.08f
 #endif
 
 /* Full-scale RPM used by the autotune warmup feedforward.

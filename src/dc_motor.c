@@ -51,6 +51,8 @@ DcMotor_Status_t DcMotor_Init(DcMotor_Handle_t             *hdm,
         hdm->pid_cfg = *pid;
         hdm->pid_cfg.deriv_filter_alpha =
             s_clamp(hdm->pid_cfg.deriv_filter_alpha, 0.0f, 1.0f);
+        hdm->pid_cfg.dead_zone_duty =
+            s_clamp(hdm->pid_cfg.dead_zone_duty, 0.0f, 1.0f);
     } else {
         DcMotor_Pid_DefaultConfig(&hdm->pid_cfg);
     }
@@ -190,7 +192,12 @@ void DcMotor_Update(DcMotor_Handle_t *hdm, uint32_t tick_ms, float current_rpm)
     if (hdm->closed_loop) {
         float duty = DcMotor_Pid_Compute(&hdm->pid_cfg, &hdm->pid_st,
                                          dt_s, hdm->rpm_setpoint, current_rpm);
-        duty = s_clamp(duty, hdm->pid_cfg.output_min, hdm->pid_cfg.output_max);
+        /* Add dead-zone feedforward so the PID output actually moves the motor.
+         * Without this, at low RPM setpoints the PID output may be too small
+         * to overcome static friction and the motor stalls indefinitely. */
+        if (hdm->rpm_setpoint > 0.0f)
+            duty += hdm->pid_cfg.dead_zone_duty;
+        duty = s_clamp(duty, 0.0f, hdm->pid_cfg.output_max);
         s_apply_duty(hdm, duty);
         hdm->state = (hdm->current_duty > 0.0f) ? DC_MOTOR_RUNNING : DC_MOTOR_IDLE;
     } else
@@ -228,6 +235,8 @@ void DcMotor_SetPidConfig(DcMotor_Handle_t *hdm, const DcMotor_PidConfig_t *cfg)
     hdm->pid_cfg = *cfg;
     hdm->pid_cfg.deriv_filter_alpha =
         s_clamp(hdm->pid_cfg.deriv_filter_alpha, 0.0f, 1.0f);
+    hdm->pid_cfg.dead_zone_duty =
+        s_clamp(hdm->pid_cfg.dead_zone_duty, 0.0f, 1.0f);
 #else
     (void)hdm; (void)cfg;
 #endif
