@@ -157,6 +157,16 @@ DcMotor_Status_t DcMotor_SetRpmSetpoint(DcMotor_Handle_t *hdm, float rpm_sp)
     hdm->rpm_setpoint = rpm_sp;
     hdm->closed_loop  = true;
     if (hdm->state == DC_MOTOR_IDLE) hdm->state = DC_MOTOR_RUNNING;
+
+    /*
+     * Integral kick: pre-load the integrator to the minimum effective duty
+     * so the PID output starts above the motor dead-band immediately,
+     * instead of spending several cycles winding up from zero.
+     */
+    hdm->pid_st.integral   = DC_MOTOR_MIN_EFFECTIVE_DUTY;
+    hdm->pid_st.prev_error = 0.0f;
+    hdm->pid_st.filtered_deriv = 0.0f;
+
     return (hdm->last_status = DC_MOTOR_OK);
 #else
     (void)rpm_sp;
@@ -186,11 +196,30 @@ void DcMotor_Update(DcMotor_Handle_t *hdm, uint32_t tick_ms, float current_rpm)
     }
     hdm->last_tick_ms = tick_ms;
 
+    /*
+     * Clamp dt_s to avoid a large derivative spike on the first tick after
+     * a long pause (e.g. motor stalled and recovered). Without this clamp,
+     * (prev_error - error) / huge_dt produces a near-zero or negative
+     * derivative that pulls the PID output down to output_min and keeps it
+     * there even though the error is positive.
+     */
+    if (dt_s > DC_MOTOR_PID_MAX_DT_S) dt_s = DC_MOTOR_PID_MAX_DT_S;
+
 #if DC_MOTOR_ENABLE_PID
     if (hdm->closed_loop) {
         float duty = DcMotor_Pid_Compute(&hdm->pid_cfg, &hdm->pid_st,
                                          dt_s, hdm->rpm_setpoint, current_rpm);
         duty = s_clamp(duty, hdm->pid_cfg.output_min, hdm->pid_cfg.output_max);
+
+        /*
+         * Dead-band compensation: if the PID wants to move the motor but
+         * the computed duty is below the physical minimum needed to overcome
+         * static friction, snap it up to that minimum so the motor actually
+         * starts turning and the encoder begins producing pulses.
+         */
+        if (duty > 0.0f && duty < DC_MOTOR_MIN_EFFECTIVE_DUTY)
+            duty = DC_MOTOR_MIN_EFFECTIVE_DUTY;
+
         s_apply_duty(hdm, duty);
         hdm->state = (hdm->current_duty > 0.0f) ? DC_MOTOR_RUNNING : DC_MOTOR_IDLE;
     } else

@@ -75,4 +75,24 @@
 #define DC_AUTOTUNE_WARMUP_MS                5000U
 #endif
 
+/*
+ * Minimum effective duty cycle to overcome motor dead-band.
+ * The PID output is snapped to this value when it is positive but below
+ * this threshold, preventing the motor from stalling at low setpoints.
+ * Override with your motor's actual minimum start-up duty.
+ */
+#ifndef DC_MOTOR_MIN_EFFECTIVE_DUTY
+#define DC_MOTOR_MIN_EFFECTIVE_DUTY      0.10f
+#endif
+
+/*
+ * Maximum dt_s fed into the PID computation (seconds).
+ * Clamps abnormally large tick gaps (e.g. first tick after a stall pause)
+ * so the derivative term does not produce a large negative spike that
+ * drives the output to zero and "locks" the integrator at output_min.
+ */
+#ifndef DC_MOTOR_PID_MAX_DT_S
+#define DC_MOTOR_PID_MAX_DT_S            0.1f
+#endif
+
 #endif
