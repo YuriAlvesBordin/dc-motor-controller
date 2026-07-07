@@ -6,48 +6,16 @@ static dc_motor_t        s_motor;
 static TIM_HandleTypeDef *s_pwm_tim;
 static uint32_t           s_pwm_channel;
 static uint32_t           s_pwm_resolution;
-static RpmCalc_Handle_t  *s_rpm_handle;
 
 static void apply_pwm(float cmd_pct)
 {
     uint32_t duty;
 
-    if (cmd_pct < 0.0f)
-    {
-        cmd_pct = 0.0f;
-    }
-    else if (cmd_pct > 100.0f)
-    {
-        cmd_pct = 100.0f;
-    }
+    if (cmd_pct < 0.0f)        cmd_pct = 0.0f;
+    else if (cmd_pct > 100.0f) cmd_pct = 100.0f;
 
     duty = (uint32_t)((cmd_pct * (float)s_pwm_resolution) / 100.0f);
     __HAL_TIM_SET_COMPARE(s_pwm_tim, s_pwm_channel, duty);
-}
-
-static float read_rpm(float dt_sec)
-{
-    double rpm_double = 0.0;
-    RpmCalc_Status_t status;
-
-    (void)dt_sec; /* dt_sec unused; RpmCalc maintains its own timing */
-
-    if (s_rpm_handle == NULL)
-    {
-        return 0.0f;
-    }
-
-    /* Advance the no-pulse timeout so that a stopped motor is reported
-     * as 0 RPM instead of holding the last measured value indefinitely. */
-    RpmCalc_Update(s_rpm_handle, HAL_GetTick());
-
-    status = RpmCalc_GetRPM(s_rpm_handle, &rpm_double);
-    if (status != RPM_CALC_OK)
-    {
-        return 0.0f;
-    }
-
-    return (float)rpm_double;
 }
 
 void stm32_hal_motor_init(void)
@@ -57,7 +25,6 @@ void stm32_hal_motor_init(void)
     s_pwm_tim        = STM32_MOTOR_PWM_TIM;
     s_pwm_channel    = STM32_MOTOR_PWM_CHANNEL;
     s_pwm_resolution = STM32_MOTOR_PWM_RESOLUTION;
-    s_rpm_handle     = STM32_MOTOR_RPM_HANDLE;
 
     dc_motor_init(&s_motor);
 
@@ -83,6 +50,11 @@ void stm32_hal_motor_stop(void)
     apply_pwm(0.0f);
 }
 
+void stm32_hal_motor_set_measured(float rpm)
+{
+    dc_motor_set_measured(&s_motor, rpm);
+}
+
 float stm32_hal_motor_get_rpm(void)
 {
     return dc_motor_get_measured(&s_motor);
@@ -90,8 +62,6 @@ float stm32_hal_motor_get_rpm(void)
 
 void stm32_hal_motor_control_tick(void)
 {
-    float rpm = read_rpm(DC_MOTOR_CONTROL_PERIOD_SEC);
-    dc_motor_set_measured(&s_motor, rpm);
     apply_pwm(dc_motor_update(&s_motor, DC_MOTOR_CONTROL_PERIOD_SEC));
 }
 
