@@ -17,18 +17,18 @@ dc_motor_status_t dc_motor_pid_init(dc_motor_pid_t *pid,
         return DC_MOTOR_ERR_RANGE;
     }
 
-    pid->kp = kp;
-    pid->ki = ki;
-    pid->kd = kd;
-    pid->out_min = out_min;
-    pid->out_max = out_max;
-    pid->integral = 0.0f;
+    pid->kp        = kp;
+    pid->ki        = ki;
+    pid->kd        = kd;
+    pid->out_min   = out_min;
+    pid->out_max   = out_max;
+    pid->integral  = 0.0f;
     pid->prev_error = 0.0f;
 #if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
     pid->prev_meas = 0.0f;
 #endif
 #if DC_MOTOR_ENABLE_PID_D_FILTER
-    pid->d_filter = DC_MOTOR_PID_DEFAULT_D_FILTER;
+    pid->d_filter   = DC_MOTOR_PID_DEFAULT_D_FILTER;
     pid->deriv_filt = 0.0f;
 #endif
     return DC_MOTOR_OK;
@@ -50,7 +50,7 @@ dc_motor_status_t dc_motor_pid_reset(dc_motor_pid_t *pid)
     {
         return DC_MOTOR_ERR_NULL;
     }
-    pid->integral = 0.0f;
+    pid->integral   = 0.0f;
     pid->prev_error = 0.0f;
 #if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
     pid->prev_meas = 0.0f;
@@ -83,29 +83,25 @@ float dc_motor_pid_update(dc_motor_pid_t *pid,
     float d_term;
     float raw_output;
     float clamped_output;
-#if DC_MOTOR_ENABLE_PID_ANTI_WINDUP
-    int saturating_high;
-    int saturating_low;
-#endif
+    int   integrate;
 
     if ((pid == NULL) || (dt <= 0.0f))
     {
         return 0.0f;
     }
 
-    error = setpoint - measured;
-
+    error  = setpoint - measured;
     p_term = pid->kp * error;
 
 #if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
     {
-        float d_raw_meas = (measured - pid->prev_meas) / dt;
+        float d_raw = (measured - pid->prev_meas) / dt;
 #if DC_MOTOR_ENABLE_PID_D_FILTER
         float a = pid->d_filter;
-        pid->deriv_filt = a * d_raw_meas + (1.0f - a) * pid->deriv_filt;
+        pid->deriv_filt = a * d_raw + (1.0f - a) * pid->deriv_filt;
         d_term = -pid->kd * pid->deriv_filt;
 #else
-        d_term = -pid->kd * d_raw_meas;
+        d_term = -pid->kd * d_raw;
 #endif
     }
 #else
@@ -121,19 +117,26 @@ float dc_motor_pid_update(dc_motor_pid_t *pid,
 #endif
 #endif
 
-    i_term = pid->ki * pid->integral;
-    raw_output = p_term + i_term + d_term;
+    integrate = 1;
 
 #if DC_MOTOR_ENABLE_PID_ANTI_WINDUP
-    saturating_high = (raw_output > pid->out_max) && (error > 0.0f);
-    saturating_low  = (raw_output < pid->out_min) && (error < 0.0f);
-    if (!saturating_high && !saturating_low)
     {
-        pid->integral += error * dt;
-        i_term = pid->ki * pid->integral;
-        raw_output = p_term + i_term + d_term;
+        float pre_output = p_term + (pid->ki * pid->integral) + d_term;
+        if ((pre_output > pid->out_max && error > 0.0f) ||
+            (pre_output < pid->out_min && error < 0.0f))
+        {
+            integrate = 0;
+        }
     }
 #endif
+
+    if (integrate)
+    {
+        pid->integral += error * dt;
+    }
+
+    i_term     = pid->ki * pid->integral;
+    raw_output = p_term + i_term + d_term;
 
     clamped_output = raw_output;
     if (clamped_output > pid->out_max)
@@ -153,4 +156,4 @@ float dc_motor_pid_update(dc_motor_pid_t *pid,
     return clamped_output;
 }
 
-#endif /* DC_MOTOR_ENABLE_CLOSEDLOOP */
+#endif

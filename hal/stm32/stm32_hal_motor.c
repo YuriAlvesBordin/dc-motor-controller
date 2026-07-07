@@ -11,34 +11,16 @@ typedef struct
     uint32_t           pwm_resolution;
     TIM_HandleTypeDef *enc_tim;
     uint32_t           enc_ppr;
-    int32_t            last_encoder_count;
+    int16_t            last_encoder_count;
     dc_motor_t         motor;
 } stm32_motor_runtime_t;
 
 static stm32_motor_runtime_t s_motors[MOTOR_COUNT];
 
-/**
- * @brief Apply a PWM duty cycle to the motor timer channel.
- *
- * @details This HAL targets a unidirectional driver (single PWM channel,
- *          no direction pin). A negative command means the controller
- *          overshot below zero; the correct response is to output zero
- *          duty so the motor coasts rather than being driven forward at
- *          an unintended level.
- *
- *          If bidirectional drive is needed in the future, this function
- *          must be extended to toggle a GPIO direction pin before writing
- *          the duty cycle (see issue #7).
- *
- * @param rt      Pointer to the motor runtime instance.
- * @param cmd_pct Output command in percent, range [-100.0, +100.0].
- *                Negative values are treated as zero.
- */
 static void stm32_motor_apply_pwm(stm32_motor_runtime_t *rt, float cmd_pct)
 {
     uint32_t duty;
 
-    /* Unidirectional: clamp any negative command to zero. */
     if (cmd_pct < 0.0f)
     {
         cmd_pct = 0.0f;
@@ -54,12 +36,11 @@ static void stm32_motor_apply_pwm(stm32_motor_runtime_t *rt, float cmd_pct)
 
 static float stm32_motor_read_rpm(stm32_motor_runtime_t *rt, float dt_sec)
 {
-    int32_t  current_count;
-    int32_t  delta;
-    float    revolutions;
-    float    rpm;
+    int16_t current_count;
+    int16_t delta;
+    float   revolutions;
 
-    current_count = (int32_t)__HAL_TIM_GET_COUNTER(rt->enc_tim);
+    current_count = (int16_t)__HAL_TIM_GET_COUNTER(rt->enc_tim);
     delta = current_count - rt->last_encoder_count;
     rt->last_encoder_count = current_count;
 
@@ -69,8 +50,7 @@ static float stm32_motor_read_rpm(stm32_motor_runtime_t *rt, float dt_sec)
     }
 
     revolutions = (float)delta / (float)rt->enc_ppr;
-    rpm = (revolutions / dt_sec) * 60.0f;
-    return rpm;
+    return (revolutions / dt_sec) * 60.0f;
 }
 
 int stm32_hal_motor_init(void)
@@ -102,7 +82,7 @@ int stm32_hal_motor_init(void)
         s_motors[i].pwm_resolution = cfg[i].pwm_resolution;
         s_motors[i].enc_tim        = cfg[i].enc_tim;
         s_motors[i].enc_ppr        = cfg[i].enc_ppr;
-        s_motors[i].last_encoder_count = (int32_t)__HAL_TIM_GET_COUNTER(cfg[i].enc_tim);
+        s_motors[i].last_encoder_count = (int16_t)__HAL_TIM_GET_COUNTER(cfg[i].enc_tim);
 
         dc_motor_init(&s_motors[i].motor);
 
