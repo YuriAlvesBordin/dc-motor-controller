@@ -2,22 +2,15 @@
 #include "stm32_hal_motor_config.h"
 #include <string.h>
 
-#define MOTOR_COUNT   ((uint32_t)STM32_MOTOR_COUNT)
+static dc_motor_t        s_motor;
+static TIM_HandleTypeDef *s_pwm_tim;
+static uint32_t           s_pwm_channel;
+static uint32_t           s_pwm_resolution;
+static TIM_HandleTypeDef *s_enc_tim;
+static uint32_t           s_enc_ppr;
+static int16_t            s_last_encoder_count;
 
-typedef struct
-{
-    TIM_HandleTypeDef *pwm_tim;
-    uint32_t           pwm_channel;
-    uint32_t           pwm_resolution;
-    TIM_HandleTypeDef *enc_tim;
-    uint32_t           enc_ppr;
-    int16_t            last_encoder_count;
-    dc_motor_t         motor;
-} stm32_motor_runtime_t;
-
-static stm32_motor_runtime_t s_motors[MOTOR_COUNT];
-
-static void stm32_motor_apply_pwm(stm32_motor_runtime_t *rt, float cmd_pct)
+static void apply_pwm(float cmd_pct)
 {
     uint32_t duty;
 
@@ -30,127 +23,70 @@ static void stm32_motor_apply_pwm(stm32_motor_runtime_t *rt, float cmd_pct)
         cmd_pct = 100.0f;
     }
 
-    duty = (uint32_t)((cmd_pct * (float)rt->pwm_resolution) / 100.0f);
-    __HAL_TIM_SET_COMPARE(rt->pwm_tim, rt->pwm_channel, duty);
+    duty = (uint32_t)((cmd_pct * (float)s_pwm_resolution) / 100.0f);
+    __HAL_TIM_SET_COMPARE(s_pwm_tim, s_pwm_channel, duty);
 }
 
-static float stm32_motor_read_rpm(stm32_motor_runtime_t *rt, float dt_sec)
+static float read_rpm(float dt_sec)
 {
     int16_t current_count;
     int16_t delta;
     float   revolutions;
 
-    current_count = (int16_t)__HAL_TIM_GET_COUNTER(rt->enc_tim);
-    delta = current_count - rt->last_encoder_count;
-    rt->last_encoder_count = current_count;
-
-    if (rt->enc_ppr == 0u)
+    if (dt_sec <= 0.0f || s_enc_ppr == 0u)
     {
         return 0.0f;
     }
 
-    revolutions = (float)delta / (float)rt->enc_ppr;
+    current_count    = (int16_t)__HAL_TIM_GET_COUNTER(s_enc_tim);
+    delta            = current_count - s_last_encoder_count;
+    s_last_encoder_count = current_count;
+
+    revolutions = (float)delta / (float)s_enc_ppr;
     return (revolutions / dt_sec) * 60.0f;
 }
 
-int stm32_hal_motor_init(void)
+void stm32_hal_motor_init(void)
 {
-    uint32_t i;
-    static const struct
-    {
-        TIM_HandleTypeDef *pwm_tim;
-        uint32_t           pwm_channel;
-        uint32_t           pwm_resolution;
-        TIM_HandleTypeDef *enc_tim;
-        uint32_t           enc_ppr;
-    } cfg[MOTOR_COUNT] =
-    {
-        { STM32_MOTOR0_PWM_TIM, STM32_MOTOR0_PWM_CHANNEL, STM32_MOTOR0_PWM_RESOLUTION,
-          STM32_MOTOR0_ENCODER_TIM, STM32_MOTOR0_ENCODER_PPR },
-#if MOTOR_COUNT > 1
-        { STM32_MOTOR1_PWM_TIM, STM32_MOTOR1_PWM_CHANNEL, STM32_MOTOR1_PWM_RESOLUTION,
-          STM32_MOTOR1_ENCODER_TIM, STM32_MOTOR1_ENCODER_PPR },
-#endif
-    };
+    memset(&s_motor, 0, sizeof(s_motor));
 
-    memset(s_motors, 0, sizeof(s_motors));
+    s_pwm_tim        = STM32_MOTOR_PWM_TIM;
+    s_pwm_channel    = STM32_MOTOR_PWM_CHANNEL;
+    s_pwm_resolution = STM32_MOTOR_PWM_RESOLUTION;
+    s_enc_tim        = STM32_MOTOR_ENCODER_TIM;
+    s_enc_ppr        = STM32_MOTOR_ENCODER_PPR;
+    s_last_encoder_count = (int16_t)__HAL_TIM_GET_COUNTER(s_enc_tim);
 
-    for (i = 0u; i < MOTOR_COUNT; ++i)
-    {
-        s_motors[i].pwm_tim        = cfg[i].pwm_tim;
-        s_motors[i].pwm_channel    = cfg[i].pwm_channel;
-        s_motors[i].pwm_resolution = cfg[i].pwm_resolution;
-        s_motors[i].enc_tim        = cfg[i].enc_tim;
-        s_motors[i].enc_ppr        = cfg[i].enc_ppr;
-        s_motors[i].last_encoder_count = (int16_t)__HAL_TIM_GET_COUNTER(cfg[i].enc_tim);
+    dc_motor_init(&s_motor);
 
-        dc_motor_init(&s_motors[i].motor);
-
-        if (cfg[i].pwm_tim != NULL)
-        {
-            HAL_TIM_PWM_Start(cfg[i].pwm_tim, cfg[i].pwm_channel);
-            __HAL_TIM_SET_COMPARE(cfg[i].pwm_tim, cfg[i].pwm_channel, 0u);
-        }
-    }
-
-    return 0;
+    HAL_TIM_PWM_Start(s_pwm_tim, s_pwm_channel);
+    __HAL_TIM_SET_COMPARE(s_pwm_tim, s_pwm_channel, 0u);
 }
 
-int stm32_hal_motor_set_target_rpm(stm32_motor_id_t id, float target_rpm)
+void stm32_hal_motor_set_target_rpm(float target_rpm)
 {
-    if ((uint32_t)id >= MOTOR_COUNT)
-    {
-        return -1;
-    }
-    dc_motor_set_closedloop(&s_motors[id].motor, target_rpm);
-    return 0;
+    dc_motor_set_closedloop(&s_motor, target_rpm);
 }
 
-void stm32_hal_motor_stop(stm32_motor_id_t id)
+void stm32_hal_motor_stop(void)
 {
-    if ((uint32_t)id >= MOTOR_COUNT)
-    {
-        return;
-    }
-    dc_motor_stop(&s_motors[id].motor);
-    stm32_motor_apply_pwm(&s_motors[id], 0.0f);
+    dc_motor_stop(&s_motor);
+    apply_pwm(0.0f);
 }
 
-float stm32_hal_motor_get_rpm(stm32_motor_id_t id)
+float stm32_hal_motor_get_rpm(void)
 {
-    if ((uint32_t)id >= MOTOR_COUNT)
-    {
-        return 0.0f;
-    }
-    return dc_motor_get_measured(&s_motors[id].motor);
+    return dc_motor_get_measured(&s_motor);
 }
 
-void stm32_hal_motor_control_tick(stm32_motor_id_t id)
+void stm32_hal_motor_control_tick(void)
 {
-    stm32_motor_runtime_t *rt;
-    float rpm;
-    float cmd;
-    const float dt = DC_MOTOR_CONTROL_PERIOD_SEC;
-
-    if ((uint32_t)id >= MOTOR_COUNT)
-    {
-        return;
-    }
-    rt = &s_motors[id];
-
-    rpm = stm32_motor_read_rpm(rt, dt);
-    dc_motor_set_measured(&rt->motor, rpm);
-
-    cmd = dc_motor_update(&rt->motor, dt);
-
-    stm32_motor_apply_pwm(rt, cmd);
+    float rpm = read_rpm(DC_MOTOR_CONTROL_PERIOD_SEC);
+    dc_motor_set_measured(&s_motor, rpm);
+    apply_pwm(dc_motor_update(&s_motor, DC_MOTOR_CONTROL_PERIOD_SEC));
 }
 
 void stm32_hal_motor_1ms_tick(void)
 {
-    uint32_t i;
-    for (i = 0u; i < MOTOR_COUNT; ++i)
-    {
-        dc_motor_tick(&s_motors[i].motor, 1u);
-    }
+    dc_motor_tick(&s_motor, 1u);
 }
