@@ -17,26 +17,39 @@ typedef struct
 
 static stm32_motor_runtime_t s_motors[MOTOR_COUNT];
 
+/**
+ * @brief Apply a PWM duty cycle to the motor timer channel.
+ *
+ * @details This HAL targets a unidirectional driver (single PWM channel,
+ *          no direction pin). A negative command means the controller
+ *          overshot below zero; the correct response is to output zero
+ *          duty so the motor coasts rather than being driven forward at
+ *          an unintended level.
+ *
+ *          If bidirectional drive is needed in the future, this function
+ *          must be extended to toggle a GPIO direction pin before writing
+ *          the duty cycle (see issue #7).
+ *
+ * @param rt      Pointer to the motor runtime instance.
+ * @param cmd_pct Output command in percent, range [-100.0, +100.0].
+ *                Negative values are treated as zero.
+ */
 static void stm32_motor_apply_pwm(stm32_motor_runtime_t *rt, float cmd_pct)
 {
-    int32_t duty;
-    float clamped;
+    uint32_t duty;
 
-    clamped = cmd_pct;
-    if (clamped > 100.0f) clamped = 100.0f;
-    if (clamped < -100.0f) clamped = -100.0f;
-
-    duty = (int32_t)((clamped * (float)rt->pwm_resolution) / 100.0f);
-
-    if (duty >= 0)
+    /* Unidirectional: clamp any negative command to zero. */
+    if (cmd_pct < 0.0f)
     {
-        __HAL_TIM_SET_COMPARE(rt->pwm_tim, rt->pwm_channel, (uint32_t)duty);
+        cmd_pct = 0.0f;
     }
-    else
+    else if (cmd_pct > 100.0f)
     {
-        __HAL_TIM_SET_COMPARE(rt->pwm_tim, rt->pwm_channel,
-                              (uint32_t)(-duty));
+        cmd_pct = 100.0f;
     }
+
+    duty = (uint32_t)((cmd_pct * (float)rt->pwm_resolution) / 100.0f);
+    __HAL_TIM_SET_COMPARE(rt->pwm_tim, rt->pwm_channel, duty);
 }
 
 static float stm32_motor_read_rpm(stm32_motor_runtime_t *rt, float dt_sec)
