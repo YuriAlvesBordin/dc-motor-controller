@@ -1,69 +1,52 @@
+/**
+ * @file    dc_motor_types.h
+ * @brief   Common types and enumerations shared across the DC motor library.
+ *
+ * @details No global variables and no dynamic memory allocation are used
+ *          anywhere in this header or its consumers. All state is kept
+ *          inside host-declared structures.
+ */
+
 #ifndef DC_MOTOR_TYPES_H
 #define DC_MOTOR_TYPES_H
 
 #include <stdint.h>
-#include <stdbool.h>
 
-#ifdef __cplusplus
-extern "C" {
+/**
+ * @brief Status codes returned by the library API.
+ */
+typedef enum
+{
+    DC_MOTOR_OK = 0,           /**< Operation succeeded.                          */
+    DC_MOTOR_ERR_NULL,         /**< A NULL pointer was passed to the function.    */
+    DC_MOTOR_ERR_MODE,         /**< Requested operation is invalid for current mode. */
+    DC_MOTOR_ERR_DISABLED,     /**< The requested feature is disabled at compile time. */
+    DC_MOTOR_ERR_RANGE,        /**< A numerical argument is out of the allowed range. */
+    DC_MOTOR_ERR_WATCHDOG,     /**< The watchdog has tripped and the motor is frozen. */
+} dc_motor_status_t;
+
+/**
+ * @brief Operating mode of a motor instance.
+ */
+typedef enum
+{
+    DC_MOTOR_MODE_IDLE = 0,    /**< Motor stopped, output forced to zero.         */
+#if DC_MOTOR_ENABLE_OPENLOOP
+    DC_MOTOR_MODE_OPENLOOP,    /**< Acceleration-ramped direct command mode.      */
 #endif
-
-#ifndef DC_MOTOR_DERIV_FILTER_ALPHA
-#define DC_MOTOR_DERIV_FILTER_ALPHA      0.3f
+#if DC_MOTOR_ENABLE_CLOSEDLOOP
+    DC_MOTOR_MODE_CLOSEDLOOP,  /**< PID closed-loop tracking a measured variable. */
 #endif
+} dc_motor_mode_t;
 
-typedef struct {
-    float kp, ki, kd;
-    float dt_s;
-    float output_min, output_max;
-    float integral_min, integral_max;
-    float deriv_filter_alpha;
-} DcMotor_PidConfig_t;
+/**
+ * @brief Direction of rotation reported by the host's feedback sensor.
+ */
+typedef enum
+{
+    DC_MOTOR_DIR_NONE  = 0,    /**< No motion (or below the dead-band threshold). */
+    DC_MOTOR_DIR_FWD   = 1,    /**< Forward rotation.                             */
+    DC_MOTOR_DIR_REV   = -1,   /**< Reverse rotation.                             */
+} dc_motor_direction_t;
 
-typedef struct {
-    float accel_rate;
-    float decel_rate;
-    float smooth_alpha;
-} DcMotor_RampConfig_t;
-
-typedef struct {
-    uint32_t stall_timeout_ms;
-    float    stall_min_rpm;
-    float    min_duty_for_stall;
-} DcMotor_SafetyConfig_t;
-
-typedef struct {
-    float    integral;
-    float    prev_error;
-    float    filtered_deriv;
-} DcMotor_PidState_t;
-
-typedef struct {
-    uint32_t stall_start_ms;
-    bool     stall_active;
-} DcMotor_SafetyState_t;
-
-typedef void (*DcMotor_FaultCb_t)(void *ctx);
-
-typedef enum {
-    DC_MOTOR_IDLE        = 0,
-    DC_MOTOR_RAMPING     = 1,
-    DC_MOTOR_RUNNING     = 2,
-    DC_MOTOR_FAULT_STALL = 3,
-    DC_MOTOR_FAULT       = 4,
-} DcMotor_State_t;
-
-typedef enum {
-    DC_MOTOR_OK           =  0,
-    DC_MOTOR_ERR_NULL_PTR = -1,
-    DC_MOTOR_ERR_PARAM    = -2,
-    DC_MOTOR_ERR_NO_DATA  = -3,
-    DC_MOTOR_ERR_STALL    = -4,
-    DC_MOTOR_ERR_FAULT    = -5,
-} DcMotor_Status_t;
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif
+#endif /* DC_MOTOR_TYPES_H */

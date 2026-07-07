@@ -1,55 +1,156 @@
-#include "dc_motor_config.h"
+#include "dc_motor_pid.h"
 
-#if DC_MOTOR_ENABLE_PID
+#if DC_MOTOR_ENABLE_CLOSEDLOOP
 
-#include "internal/dc_motor_pid.h"
+#include <stddef.h>
 
-void DcMotor_Pid_DefaultConfig(DcMotor_PidConfig_t *cfg)
+dc_motor_status_t dc_motor_pid_init(dc_motor_pid_t *pid,
+                                    float kp, float ki, float kd,
+                                    float out_min, float out_max)
 {
-    if (!cfg) return;
-    cfg->kp                 = DC_MOTOR_DEFAULT_KP;
-    cfg->ki                 = DC_MOTOR_DEFAULT_KI;
-    cfg->kd                 = DC_MOTOR_DEFAULT_KD;
-    cfg->dt_s               = DC_MOTOR_DEFAULT_DT_S;
-    cfg->output_min         = 0.0f;
-    cfg->output_max         = 1.0f;
-    cfg->integral_min       = -1.0f;
-    cfg->integral_max       = 1.0f;
-    cfg->deriv_filter_alpha = DC_MOTOR_DERIV_FILTER_ALPHA;
-}
+    if (pid == NULL)
+    {
+        return DC_MOTOR_ERR_NULL;
+    }
+    if (out_min >= out_max)
+    {
+        return DC_MOTOR_ERR_RANGE;
+    }
 
-void DcMotor_Pid_Reset(DcMotor_PidState_t *st)
-{
-    if (!st) return;
-    st->integral       = 0.0f;
-    st->prev_error     = 0.0f;
-    st->filtered_deriv = 0.0f;
-}
-
-float DcMotor_Pid_Compute(const DcMotor_PidConfig_t *cfg,
-                           DcMotor_PidState_t        *st,
-                           float                      dt_s,
-                           float                      setpoint,
-                           float                      measured)
-{
-    if (!cfg || !st || dt_s <= 0.0f) return 0.0f;
-
-    float error = setpoint - measured;
-
-    st->integral += cfg->ki * error * dt_s;
-    if (st->integral > cfg->integral_max) st->integral = cfg->integral_max;
-    if (st->integral < cfg->integral_min) st->integral = cfg->integral_min;
-
-    float raw_deriv    = (error - st->prev_error) / dt_s;
-    float alpha        = cfg->deriv_filter_alpha;
-    float deriv        = alpha * raw_deriv + (1.0f - alpha) * st->filtered_deriv;
-    st->filtered_deriv = deriv;
-    st->prev_error     = error;
-
-    float out = cfg->kp * error + st->integral + cfg->kd * deriv;
-    if (out > cfg->output_max) out = cfg->output_max;
-    if (out < cfg->output_min) out = cfg->output_min;
-    return out;
-}
-
+    pid->kp = kp;
+    pid->ki = ki;
+    pid->kd = kd;
+    pid->out_min = out_min;
+    pid->out_max = out_max;
+    pid->integral = 0.0f;
+    pid->prev_error = 0.0f;
+#if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
+    pid->prev_meas = 0.0f;
 #endif
+#if DC_MOTOR_ENABLE_PID_D_FILTER
+    pid->d_filter = DC_MOTOR_PID_DEFAULT_D_FILTER;
+    pid->deriv_filt = 0.0f;
+#endif
+    return DC_MOTOR_OK;
+}
+
+dc_motor_status_t dc_motor_pid_init_default(dc_motor_pid_t *pid)
+{
+    return dc_motor_pid_init(pid,
+                             DC_MOTOR_PID_DEFAULT_KP,
+                             DC_MOTOR_PID_DEFAULT_KI,
+                             DC_MOTOR_PID_DEFAULT_KD,
+                             DC_MOTOR_PID_DEFAULT_OUT_MIN,
+                             DC_MOTOR_PID_DEFAULT_OUT_MAX);
+}
+
+dc_motor_status_t dc_motor_pid_reset(dc_motor_pid_t *pid)
+{
+    if (pid == NULL)
+    {
+        return DC_MOTOR_ERR_NULL;
+    }
+    pid->integral = 0.0f;
+    pid->prev_error = 0.0f;
+#if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
+    pid->prev_meas = 0.0f;
+#endif
+#if DC_MOTOR_ENABLE_PID_D_FILTER
+    pid->deriv_filt = 0.0f;
+#endif
+    return DC_MOTOR_OK;
+}
+
+dc_motor_status_t dc_motor_pid_tune(dc_motor_pid_t *pid,
+                                    float kp, float ki, float kd)
+{
+    if (pid == NULL)
+    {
+        return DC_MOTOR_ERR_NULL;
+    }
+    pid->kp = kp;
+    pid->ki = ki;
+    pid->kd = kd;
+    return DC_MOTOR_OK;
+}
+
+float dc_motor_pid_update(dc_motor_pid_t *pid,
+                          float setpoint, float measured, float dt)
+{
+    float error;
+    float p_term;
+    float i_term;
+    float d_term;
+    float raw_output;
+    float clamped_output;
+#if DC_MOTOR_ENABLE_PID_ANTI_WINDUP
+    int saturating_high;
+    int saturating_low;
+#endif
+
+    if ((pid == NULL) || (dt <= 0.0f))
+    {
+        return 0.0f;
+    }
+
+    error = setpoint - measured;
+
+    p_term = pid->kp * error;
+
+#if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
+    {
+        float d_raw_meas = (measured - pid->prev_meas) / dt;
+#if DC_MOTOR_ENABLE_PID_D_FILTER
+        float a = pid->d_filter;
+        pid->deriv_filt = a * d_raw_meas + (1.0f - a) * pid->deriv_filt;
+        d_term = -pid->kd * pid->deriv_filt;
+#else
+        d_term = -pid->kd * d_raw_meas;
+#endif
+    }
+#else
+#if DC_MOTOR_ENABLE_PID_D_FILTER
+    {
+        float d_raw = (error - pid->prev_error) / dt;
+        float a = pid->d_filter;
+        pid->deriv_filt = a * d_raw + (1.0f - a) * pid->deriv_filt;
+        d_term = pid->kd * pid->deriv_filt;
+    }
+#else
+    d_term = pid->kd * (error - pid->prev_error) / dt;
+#endif
+#endif
+
+    i_term = pid->ki * pid->integral;
+    raw_output = p_term + i_term + d_term;
+
+#if DC_MOTOR_ENABLE_PID_ANTI_WINDUP
+    saturating_high = (raw_output > pid->out_max) && (error > 0.0f);
+    saturating_low  = (raw_output < pid->out_min) && (error < 0.0f);
+    if (!saturating_high && !saturating_low)
+    {
+        pid->integral += error * dt;
+        i_term = pid->ki * pid->integral;
+        raw_output = p_term + i_term + d_term;
+    }
+#endif
+
+    clamped_output = raw_output;
+    if (clamped_output > pid->out_max)
+    {
+        clamped_output = pid->out_max;
+    }
+    else if (clamped_output < pid->out_min)
+    {
+        clamped_output = pid->out_min;
+    }
+
+    pid->prev_error = error;
+#if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
+    pid->prev_meas = measured;
+#endif
+
+    return clamped_output;
+}
+
+#endif /* DC_MOTOR_ENABLE_CLOSEDLOOP */

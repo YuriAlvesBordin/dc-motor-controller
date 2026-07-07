@@ -1,38 +1,126 @@
-#include "dc_motor_config.h"
+#include "dc_motor_ramp.h"
 
 #if DC_MOTOR_ENABLE_RAMP
 
-#include "internal/dc_motor_ramp.h"
+#include <stddef.h>
 
-void DcMotor_Ramp_DefaultConfig(DcMotor_RampConfig_t *cfg)
+dc_motor_status_t dc_motor_ramp_init(dc_motor_ramp_t *ramp,
+                                     float accel, float decel)
 {
-    if (!cfg) return;
-    cfg->accel_rate  = DC_MOTOR_DEFAULT_ACCEL_RATE;
-    cfg->decel_rate  = DC_MOTOR_DEFAULT_DECEL_RATE;
-    cfg->smooth_alpha = DC_MOTOR_RAMP_SMOOTH_ALPHA;
-}
-
-float DcMotor_Ramp_Step(const DcMotor_RampConfig_t *cfg,
-                         float                       current,
-                         float                       target,
-                         float                       dt_s)
-{
-    if (!cfg || dt_s <= 0.0f) return current;
-
-    float rate  = (target > current) ? cfg->accel_rate : cfg->decel_rate;
-    float delta = rate * dt_s;
-    float linear;
-
-    if (target > current) {
-        linear = current + delta;
-        if (linear > target) linear = target;
-    } else {
-        linear = current - delta;
-        if (linear < target) linear = target;
+    if (ramp == NULL)
+    {
+        return DC_MOTOR_ERR_NULL;
+    }
+    if ((accel <= 0.0f) || (decel <= 0.0f))
+    {
+        return DC_MOTOR_ERR_RANGE;
     }
 
-    float alpha = cfg->smooth_alpha;
-    return alpha * linear + (1.0f - alpha) * current;
+    ramp->current = 0.0f;
+    ramp->target = 0.0f;
+    ramp->accel = accel;
+    ramp->decel = decel;
+    return DC_MOTOR_OK;
 }
 
-#endif
+dc_motor_status_t dc_motor_ramp_init_default(dc_motor_ramp_t *ramp)
+{
+    return dc_motor_ramp_init(ramp,
+                              DC_MOTOR_RAMP_DEFAULT_ACCEL,
+                              DC_MOTOR_RAMP_DEFAULT_DECEL);
+}
+
+dc_motor_status_t dc_motor_ramp_set_target(dc_motor_ramp_t *ramp,
+                                           float target)
+{
+    if (ramp == NULL)
+    {
+        return DC_MOTOR_ERR_NULL;
+    }
+    ramp->target = target;
+    return DC_MOTOR_OK;
+}
+
+dc_motor_status_t dc_motor_ramp_reset(dc_motor_ramp_t *ramp, float value)
+{
+    if (ramp == NULL)
+    {
+        return DC_MOTOR_ERR_NULL;
+    }
+    ramp->current = value;
+    ramp->target = value;
+    return DC_MOTOR_OK;
+}
+
+float dc_motor_ramp_update(dc_motor_ramp_t *ramp, float dt)
+{
+    float diff;
+    float abs_current;
+    float abs_target;
+    float step;
+    float limit;
+
+    if ((ramp == NULL) || (dt <= 0.0f))
+    {
+        return 0.0f;
+    }
+
+    diff = ramp->target - ramp->current;
+    if (diff == 0.0f)
+    {
+        return ramp->current;
+    }
+
+    abs_current = (ramp->current < 0.0f) ? -ramp->current : ramp->current;
+    abs_target = (ramp->target < 0.0f) ? -ramp->target : ramp->target;
+
+    if (abs_target > abs_current)
+    {
+        limit = ramp->accel;
+    }
+    else
+    {
+        limit = ramp->decel;
+    }
+
+    step = limit * dt;
+    if (step < 0.0f)
+    {
+        step = 0.0f;
+    }
+
+    if (diff > step)
+    {
+        ramp->current += step;
+    }
+    else if (diff < -step)
+    {
+        ramp->current -= step;
+    }
+    else
+    {
+        ramp->current = ramp->target;
+    }
+
+    return ramp->current;
+}
+
+int dc_motor_ramp_is_idle(const dc_motor_ramp_t *ramp)
+{
+    float diff;
+    const float threshold = 1e-3f;
+
+    if (ramp == NULL)
+    {
+        return 1;
+    }
+
+    diff = ramp->target - ramp->current;
+    if (diff < 0.0f)
+    {
+        diff = -diff;
+    }
+    return (diff <= threshold) ? 1 : 0;
+}
+
+#endif /* DC_MOTOR_ENABLE_RAMP */
