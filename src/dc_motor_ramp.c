@@ -17,9 +17,9 @@ dc_motor_status_t dc_motor_ramp_init(dc_motor_ramp_t *ramp,
     }
 
     ramp->current = 0.0f;
-    ramp->target = 0.0f;
-    ramp->accel = accel;
-    ramp->decel = decel;
+    ramp->target  = 0.0f;
+    ramp->accel   = accel;
+    ramp->decel   = decel;
     return DC_MOTOR_OK;
 }
 
@@ -48,17 +48,16 @@ dc_motor_status_t dc_motor_ramp_reset(dc_motor_ramp_t *ramp, float value)
         return DC_MOTOR_ERR_NULL;
     }
     ramp->current = value;
-    ramp->target = value;
+    ramp->target  = value;
     return DC_MOTOR_OK;
 }
 
 float dc_motor_ramp_update(dc_motor_ramp_t *ramp, float dt)
 {
     float diff;
-    float abs_current;
-    float abs_target;
     float step;
     float limit;
+    int   speeding_up;
 
     if ((ramp == NULL) || (dt <= 0.0f))
     {
@@ -71,23 +70,17 @@ float dc_motor_ramp_update(dc_motor_ramp_t *ramp, float dt)
         return ramp->current;
     }
 
-    abs_current = (ramp->current < 0.0f) ? -ramp->current : ramp->current;
-    abs_target = (ramp->target < 0.0f) ? -ramp->target : ramp->target;
-
-    if (abs_target > abs_current)
+    if (ramp->current >= 0.0f)
     {
-        limit = ramp->accel;
+        speeding_up = (ramp->target > ramp->current);
     }
     else
     {
-        limit = ramp->decel;
+        speeding_up = (ramp->target < ramp->current);
     }
 
-    step = limit * dt;
-    if (step < 0.0f)
-    {
-        step = 0.0f;
-    }
+    limit = speeding_up ? ramp->accel : ramp->decel;
+    step  = limit * dt;
 
     if (diff > step)
     {
@@ -123,4 +116,4 @@ int dc_motor_ramp_is_idle(const dc_motor_ramp_t *ramp)
     return (diff <= threshold) ? 1 : 0;
 }
 
-#endif /* DC_MOTOR_ENABLE_RAMP */
+#endif
