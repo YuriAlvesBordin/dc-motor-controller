@@ -10,17 +10,8 @@
 #ifndef STM32_HAL_MOTOR_CONFIG_H
 #define STM32_HAL_MOTOR_CONFIG_H
 
-/**
- * @brief STM32 HAL header to include.
- *
- * @details Override via -DSTM32_HAL_INCLUDE='"stm32g0xx_hal.h"' to
- *          port to a different STM32 series without editing this file.
- */
-#ifndef STM32_HAL_INCLUDE
-#define STM32_HAL_INCLUDE "stm32f4xx_hal.h"
-#endif
-
-#include STM32_HAL_INCLUDE
+#include "main.h"
+#include "tim.h"
 
 /**
  * @brief PWM timer handle (e.g. TIM1 CH1).
