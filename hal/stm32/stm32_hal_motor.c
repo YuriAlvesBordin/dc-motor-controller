@@ -66,6 +66,13 @@ void stm32_hal_motor_set_target_rpm(float target_rpm)
     dc_motor_set_closedloop(&s_motor, target_rpm);
 }
 
+void stm32_hal_motor_set_openloop(float duty_pct)
+{
+    if (duty_pct < 0.0f)   duty_pct = 0.0f;
+    if (duty_pct > 100.0f) duty_pct = 100.0f;
+    dc_motor_set_openloop(&s_motor, duty_pct);
+}
+
 void stm32_hal_motor_stop(void)
 {
     dc_motor_stop(&s_motor);

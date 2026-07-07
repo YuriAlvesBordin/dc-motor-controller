@@ -37,6 +37,19 @@ void stm32_hal_motor_init(void);
 void stm32_hal_motor_set_target_rpm(float target_rpm);
 
 /**
+ * @brief Drive the motor in open-loop at a fixed duty cycle.
+ *
+ * @details Bypasses the PID controller entirely. Intended for calibration
+ *          routines where a known duty cycle must be applied without
+ *          closed-loop feedback. The internal dc_motor_t mode is set to
+ *          OPENLOOP so control_tick() will apply the fixed duty on each
+ *          iteration until stop() or set_target_rpm() is called.
+ *
+ * @param duty_pct  Duty cycle percentage [0.0 – 100.0].
+ */
+void stm32_hal_motor_set_openloop(float duty_pct);
+
+/**
  * @brief Stop the motor immediately.
  *
  * @details Resets the dc_motor_t state and forces PWM duty to zero.
