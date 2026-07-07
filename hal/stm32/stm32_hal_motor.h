@@ -1,5 +1,4 @@
 /**
- * @file    stm32_hal_motor.h
  * @brief   Single-motor STM32 HAL public API.
  *
  * @details This HAL targets a single unidirectional DC motor driven by
@@ -67,5 +66,12 @@ void stm32_hal_motor_control_tick(void);
  * @details Must be called every 1 ms, typically from the SysTick handler.
  */
 void stm32_hal_motor_1ms_tick(void);
+
+/**
+ * @brief Access the internal PID controller for runtime tuning.
+ *
+ * @return Pointer to the internal PID controller, or NULL if not initialized.
+ */
+dc_motor_pid_t *stm32_hal_motor_get_pid(void);
 
 #endif

@@ -12,30 +12,27 @@
 
 #include "main.h"
 #include "tim.h"
+#include "app.h"
 
 /**
- * @brief PWM timer handle (e.g. TIM1 CH1).
+ * @brief PWM timer handle (TIM1 CH2 on PB3).
  */
 #define STM32_MOTOR_PWM_TIM           (&htim1)
 
 /**
  * @brief PWM timer channel.
  */
-#define STM32_MOTOR_PWM_CHANNEL       TIM_CHANNEL_1
+#define STM32_MOTOR_PWM_CHANNEL       TIM_CHANNEL_2
 
 /**
- * @brief PWM resolution: ARR value configured in CubeMX.
+ * @brief PWM resolution: ARR value configured in CubeMX (TIM1 ARR = 999).
  */
-#define STM32_MOTOR_PWM_RESOLUTION    (1000u)
+#define STM32_MOTOR_PWM_RESOLUTION    (999u)
 
 /**
- * @brief Encoder timer handle configured in encoder mode (e.g. TIM3).
+ * @brief RPM calculator handle (uses TIM1 CH1 input capture via FreqCalc).
+ *        Defined in app.c, initialized in main.c before stm32_hal_motor_init().
  */
-#define STM32_MOTOR_ENCODER_TIM       (&htim3)
-
-/**
- * @brief Encoder pulses per revolution (counts per revolution).
- */
-#define STM32_MOTOR_ENCODER_PPR       (10u)
+#define STM32_MOTOR_RPM_HANDLE        (&app.s_rpm_calc)
 
 #endif

@@ -6,9 +6,7 @@ static dc_motor_t        s_motor;
 static TIM_HandleTypeDef *s_pwm_tim;
 static uint32_t           s_pwm_channel;
 static uint32_t           s_pwm_resolution;
-static TIM_HandleTypeDef *s_enc_tim;
-static uint32_t           s_enc_ppr;
-static int16_t            s_last_encoder_count;
+static RpmCalc_Handle_t  *s_rpm_handle;
 
 static void apply_pwm(float cmd_pct)
 {
@@ -29,21 +27,23 @@ static void apply_pwm(float cmd_pct)
 
 static float read_rpm(float dt_sec)
 {
-    int16_t current_count;
-    int16_t delta;
-    float   revolutions;
+    double rpm_double = 0.0;
+    RpmCalc_Status_t status;
 
-    if (dt_sec <= 0.0f || s_enc_ppr == 0u)
+    (void)dt_sec; // dt_sec unused; RpmCalc maintains its own timing
+
+    if (s_rpm_handle == NULL)
     {
         return 0.0f;
     }
 
-    current_count    = (int16_t)__HAL_TIM_GET_COUNTER(s_enc_tim);
-    delta            = current_count - s_last_encoder_count;
-    s_last_encoder_count = current_count;
+    status = RpmCalc_GetRPM(s_rpm_handle, &rpm_double);
+    if (status != RPM_CALC_OK)
+    {
+        return 0.0f;
+    }
 
-    revolutions = (float)delta / (float)s_enc_ppr;
-    return (revolutions / dt_sec) * 60.0f;
+    return (float)rpm_double;
 }
 
 void stm32_hal_motor_init(void)
@@ -53,9 +53,7 @@ void stm32_hal_motor_init(void)
     s_pwm_tim        = STM32_MOTOR_PWM_TIM;
     s_pwm_channel    = STM32_MOTOR_PWM_CHANNEL;
     s_pwm_resolution = STM32_MOTOR_PWM_RESOLUTION;
-    s_enc_tim        = STM32_MOTOR_ENCODER_TIM;
-    s_enc_ppr        = STM32_MOTOR_ENCODER_PPR;
-    s_last_encoder_count = (int16_t)__HAL_TIM_GET_COUNTER(s_enc_tim);
+    s_rpm_handle     = STM32_MOTOR_RPM_HANDLE;
 
     dc_motor_init(&s_motor);
 
@@ -89,4 +87,9 @@ void stm32_hal_motor_control_tick(void)
 void stm32_hal_motor_1ms_tick(void)
 {
     dc_motor_tick(&s_motor, 1u);
+}
+
+dc_motor_pid_t *stm32_hal_motor_get_pid(void)
+{
+    return &s_motor.closedloop.pid;
 }

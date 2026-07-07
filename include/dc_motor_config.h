@@ -29,7 +29,7 @@
  * @brief Enable the open-loop mode (acceleration-ramped direct command).
  */
 #ifndef DC_MOTOR_ENABLE_OPENLOOP
-#define DC_MOTOR_ENABLE_OPENLOOP          0
+#define DC_MOTOR_ENABLE_OPENLOOP          1
 #endif
 
 /**
@@ -46,7 +46,7 @@
  *          When set to 0, setpoints are applied instantaneously.
  */
 #ifndef DC_MOTOR_ENABLE_RAMP
-#define DC_MOTOR_ENABLE_RAMP              0
+#define DC_MOTOR_ENABLE_RAMP              1
 #endif
 
 /**
@@ -95,28 +95,28 @@
  *          called by the host application.
  */
 #ifndef DC_MOTOR_CONTROL_PERIOD_SEC
-#define DC_MOTOR_CONTROL_PERIOD_SEC        (0.001f)
+#define DC_MOTOR_CONTROL_PERIOD_SEC        (0.1f)
 #endif
 
 /**
  * @brief Default proportional gain (Kp).
  */
 #ifndef DC_MOTOR_PID_DEFAULT_KP
-#define DC_MOTOR_PID_DEFAULT_KP            (1.0f)
+#define DC_MOTOR_PID_DEFAULT_KP            (0.75f)
 #endif
 
 /**
  * @brief Default integral gain (Ki, per second).
  */
 #ifndef DC_MOTOR_PID_DEFAULT_KI
-#define DC_MOTOR_PID_DEFAULT_KI            (0.5f)
+#define DC_MOTOR_PID_DEFAULT_KI            (0.35f)
 #endif
 
 /**
  * @brief Default derivative gain (Kd, per second).
  */
 #ifndef DC_MOTOR_PID_DEFAULT_KD
-#define DC_MOTOR_PID_DEFAULT_KD            (0.0f)
+#define DC_MOTOR_PID_DEFAULT_KD            (0.01f)
 #endif
 
 /**
@@ -191,7 +191,7 @@
  * @details Only meaningful when DC_MOTOR_ENABLE_WATCHDOG is 1.
  */
 #ifndef DC_MOTOR_WATCHDOG_TIMEOUT_MS
-#define DC_MOTOR_WATCHDOG_TIMEOUT_MS       (50u)
+#define DC_MOTOR_WATCHDOG_TIMEOUT_MS       (5000u)
 #endif
 
 #endif
