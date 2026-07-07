@@ -2,22 +2,23 @@
  * @brief   Single-motor STM32 HAL public API.
  *
  * @details This HAL targets a single unidirectional DC motor driven by
- *          one PWM channel and measured by one quadrature encoder timer.
- *          All state is internal; the application only calls the functions
- *          declared here.
+ *          one PWM channel. RPM measurement is the caller's responsibility:
+ *          the application measures RPM externally (e.g. via RpmSensor) and
+ *          injects the value each control cycle with stm32_hal_motor_set_measured().
  *
  *          Typical integration:
  *          - Call stm32_hal_motor_init() once after HAL_Init() and
  *            all MX_TIMx_Init() calls.
  *          - Call stm32_hal_motor_1ms_tick() from the 1 ms SysTick handler.
- *          - Call stm32_hal_motor_control_tick() from the control-loop
- *            timer ISR at the period defined by DC_MOTOR_CONTROL_PERIOD_SEC.
+ *          - Each control period: compute RPM, call stm32_hal_motor_set_measured(),
+ *            then call stm32_hal_motor_control_tick().
  */
 
 #ifndef STM32_HAL_MOTOR_H
 #define STM32_HAL_MOTOR_H
 
 #include "dc_motor.h"
+#include "dc_motor_pid.h"
 
 /**
  * @brief Initialise the motor HAL.
@@ -41,11 +42,9 @@ void stm32_hal_motor_set_target_rpm(float target_rpm);
  *
  * @details Bypasses the PID controller entirely. Intended for calibration
  *          routines where a known duty cycle must be applied without
- *          closed-loop feedback. The internal dc_motor_t mode is set to
- *          OPENLOOP so control_tick() will apply the fixed duty on each
- *          iteration until stop() or set_target_rpm() is called.
+ *          closed-loop feedback.
  *
- * @param duty_pct  Duty cycle percentage [0.0 – 100.0].
+ * @param duty_pct  Duty cycle percentage [0.0 - 100.0].
  */
 void stm32_hal_motor_set_openloop(float duty_pct);
 
@@ -57,19 +56,30 @@ void stm32_hal_motor_set_openloop(float duty_pct);
 void stm32_hal_motor_stop(void);
 
 /**
+ * @brief Inject the measured RPM value for the current control cycle.
+ *
+ * @details The caller is responsible for measuring RPM (e.g. via RpmSensor)
+ *          and injecting it here before calling stm32_hal_motor_control_tick().
+ *          This decouples the HAL from any specific RPM measurement strategy.
+ *
+ * @param rpm  Measured motor speed in RPM (>= 0).
+ */
+void stm32_hal_motor_set_measured(float rpm);
+
+/**
  * @brief Return the last measured motor speed.
  *
- * @return Motor speed in RPM as reported by the encoder.
+ * @return Motor speed in RPM as set by the last stm32_hal_motor_set_measured() call.
  */
 float stm32_hal_motor_get_rpm(void);
 
 /**
  * @brief Execute one control-loop iteration.
  *
- * @details Reads encoder RPM, feeds the measurement into dc_motor_t,
- *          calls dc_motor_update() and applies the resulting duty cycle
- *          to the PWM timer. Must be called at exactly
- *          DC_MOTOR_CONTROL_PERIOD_SEC intervals.
+ * @details Calls dc_motor_update() with the last measured RPM and applies
+ *          the resulting duty cycle to the PWM timer. Must be called at
+ *          exactly DC_MOTOR_CONTROL_PERIOD_SEC intervals, after
+ *          stm32_hal_motor_set_measured() has been called for this cycle.
  */
 void stm32_hal_motor_control_tick(void);
 
@@ -83,8 +93,8 @@ void stm32_hal_motor_1ms_tick(void);
 /**
  * @brief Access the internal PID controller for runtime tuning.
  *
- * @return Pointer to the internal PID controller, or NULL if not initialized.
+ * @return Pointer to the internal PID controller.
  */
 dc_motor_pid_t *stm32_hal_motor_get_pid(void);
 
-#endif
+#endif /* STM32_HAL_MOTOR_H */
