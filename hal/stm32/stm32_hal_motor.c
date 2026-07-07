@@ -30,12 +30,16 @@ static float read_rpm(float dt_sec)
     double rpm_double = 0.0;
     RpmCalc_Status_t status;
 
-    (void)dt_sec; // dt_sec unused; RpmCalc maintains its own timing
+    (void)dt_sec; /* dt_sec unused; RpmCalc maintains its own timing */
 
     if (s_rpm_handle == NULL)
     {
         return 0.0f;
     }
+
+    /* Advance the no-pulse timeout so that a stopped motor is reported
+     * as 0 RPM instead of holding the last measured value indefinitely. */
+    RpmCalc_Update(s_rpm_handle, HAL_GetTick());
 
     status = RpmCalc_GetRPM(s_rpm_handle, &rpm_double);
     if (status != RPM_CALC_OK)
