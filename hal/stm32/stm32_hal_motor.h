@@ -19,82 +19,16 @@
 
 #include "dc_motor.h"
 #include "dc_motor_pid.h"
+#include "stm32_hal_motor_config.h"
 
 /**
  * @brief Initialise the motor HAL.
  *
- * @details Resets internal state, copies peripheral handles from
- *          stm32_hal_motor_config.h, initialises the dc_motor_t instance,
- *          starts PWM output and sets duty to zero.
- *          Must be called once before any other function in this module.
  */
-void stm32_hal_motor_init(void);
+void stm32_hal_motor_init(dc_motor_t s_motor);
 
 /**
- * @brief Set the closed-loop RPM target.
- *
- * @param target_rpm  Desired motor speed in RPM. Must be >= 0 (unidirectional).
  */
-void stm32_hal_motor_set_target_rpm(float target_rpm);
-
-/**
- * @brief Drive the motor in open-loop at a fixed duty cycle.
- *
- * @details Bypasses the PID controller entirely. Intended for calibration
- *          routines where a known duty cycle must be applied without
- *          closed-loop feedback.
- *
- * @param duty_pct  Duty cycle percentage [0.0 - 100.0].
- */
-void stm32_hal_motor_set_openloop(float duty_pct);
-
-/**
- * @brief Stop the motor immediately.
- *
- * @details Resets the dc_motor_t state and forces PWM duty to zero.
- */
-void stm32_hal_motor_stop(void);
-
-/**
- * @brief Inject the measured RPM value for the current control cycle.
- *
- * @details The caller is responsible for measuring RPM (e.g. via RpmSensor)
- *          and injecting it here before calling stm32_hal_motor_control_tick().
- *          This decouples the HAL from any specific RPM measurement strategy.
- *
- * @param rpm  Measured motor speed in RPM (>= 0).
- */
-void stm32_hal_motor_set_measured(float rpm);
-
-/**
- * @brief Return the last measured motor speed.
- *
- * @return Motor speed in RPM as set by the last stm32_hal_motor_set_measured() call.
- */
-float stm32_hal_motor_get_rpm(void);
-
-/**
- * @brief Execute one control-loop iteration.
- *
- * @details Calls dc_motor_update() with the last measured RPM and applies
- *          the resulting duty cycle to the PWM timer. Must be called at
- *          exactly DC_MOTOR_CONTROL_PERIOD_SEC intervals, after
- *          stm32_hal_motor_set_measured() has been called for this cycle.
- */
-void stm32_hal_motor_control_tick(void);
-
-/**
- * @brief Feed the watchdog and advance internal timers.
- *
- * @details Must be called every 1 ms, typically from the SysTick handler.
- */
-void stm32_hal_motor_1ms_tick(void);
-
-/**
- * @brief Access the internal PID controller for runtime tuning.
- *
- * @return Pointer to the internal PID controller.
- */
-dc_motor_pid_t *stm32_hal_motor_get_pid(void);
+void apply_pwm(float cmd_pct);
 
 #endif /* STM32_HAL_MOTOR_H */

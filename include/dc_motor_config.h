@@ -46,7 +46,7 @@
  *          When set to 0, setpoints are applied instantaneously.
  */
 #ifndef DC_MOTOR_ENABLE_RAMP
-#define DC_MOTOR_ENABLE_RAMP              1
+#define DC_MOTOR_ENABLE_RAMP              0
 #endif
 
 /**
@@ -85,7 +85,7 @@
  *        stopped.
  */
 #ifndef DC_MOTOR_ENABLE_WATCHDOG
-#define DC_MOTOR_ENABLE_WATCHDOG          1
+#define DC_MOTOR_ENABLE_WATCHDOG          0
 #endif
 
 /**
@@ -102,7 +102,7 @@
  * @brief Default proportional gain (Kp).
  */
 #ifndef DC_MOTOR_PID_DEFAULT_KP
-#define DC_MOTOR_PID_DEFAULT_KP            (0.75f)
+#define DC_MOTOR_PID_DEFAULT_KP            (0.7f)
 #endif
 
 /**
@@ -116,7 +116,7 @@
  * @brief Default derivative gain (Kd, per second).
  */
 #ifndef DC_MOTOR_PID_DEFAULT_KD
-#define DC_MOTOR_PID_DEFAULT_KD            (0.01f)
+#define DC_MOTOR_PID_DEFAULT_KD            (0.1f)
 #endif
 
 /**
@@ -133,7 +133,7 @@
  * @brief Default PID output lower bound (percent).
  */
 #ifndef DC_MOTOR_PID_DEFAULT_OUT_MIN
-#define DC_MOTOR_PID_DEFAULT_OUT_MIN       (-100.0f)
+#define DC_MOTOR_PID_DEFAULT_OUT_MIN       (0.20f)
 #endif
 
 /**

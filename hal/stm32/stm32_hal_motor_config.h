@@ -30,9 +30,8 @@
 #define STM32_MOTOR_PWM_RESOLUTION    (999u)
 
 /**
- * @brief RPM calculator handle (uses TIM1 CH1 input capture via FreqCalc).
- *        Defined in app.c, initialized in main.c before stm32_hal_motor_init().
+ * @brief Pulses per revolution of the encoder (PPR).
  */
-#define STM32_MOTOR_RPM_HANDLE        (&app.s_rpm_calc)
+#define STM32_MOTOR_PPR                 (10u)
 
 #endif
