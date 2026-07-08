@@ -116,30 +116,25 @@ float dc_motor_pid_update(dc_motor_pid_t *pid,
 #endif
 #endif
 
-    /* Integrate first, then apply anti-windup clamping on the integral
-     * itself so the accumulated value never exceeds what P+D already
-     * saturates the output at.  This also discharges an over-wound
-     * integral immediately rather than waiting for the error to reverse. */
     pid->integral += error * dt;
 
 #if DC_MOTOR_ENABLE_PID_ANTI_WINDUP
     {
-        /* Compute the output that P and D alone would produce. */
-        float pd_output = p_term + d_term;
-
-        /* Maximum integral contribution allowed without saturating output. */
-        float i_max = pid->out_max - pd_output;
-        float i_min = pid->out_min - pd_output;
-
-        /* Clamp the integral term directly so raw_output stays in range. */
+        /* Conditional integration anti-windup: only clamp the integral when
+         * the output is saturated AND the integral is pulling in the same
+         * direction as the saturation (true windup condition).
+         * This prevents the integral from being frozen at out_min when the
+         * motor stalls and the controller needs to keep increasing the duty. */
         float i_contribution = pid->ki * pid->integral;
-        if (i_contribution > i_max)
+        float unclamped      = p_term + i_contribution + d_term;
+
+        if ((unclamped > pid->out_max) && (i_contribution > 0.0f))
         {
-            pid->integral = i_max / pid->ki;
+            pid->integral = (pid->out_max - p_term - d_term) / pid->ki;
         }
-        else if (i_contribution < i_min)
+        else if ((unclamped < pid->out_min) && (i_contribution < 0.0f))
         {
-            pid->integral = i_min / pid->ki;
+            pid->integral = (pid->out_min - p_term - d_term) / pid->ki;
         }
     }
 #endif
