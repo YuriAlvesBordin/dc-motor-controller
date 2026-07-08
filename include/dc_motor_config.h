@@ -102,7 +102,7 @@
  * @brief Default proportional gain (Kp).
  */
 #ifndef DC_MOTOR_PID_DEFAULT_KP
-#define DC_MOTOR_PID_DEFAULT_KP            (0.7f)
+#define DC_MOTOR_PID_DEFAULT_KP            (0.9f)
 #endif
 
 /**
@@ -133,7 +133,7 @@
  * @brief Default PID output lower bound (percent).
  */
 #ifndef DC_MOTOR_PID_DEFAULT_OUT_MIN
-#define DC_MOTOR_PID_DEFAULT_OUT_MIN       (0.20f)
+#define DC_MOTOR_PID_DEFAULT_OUT_MIN       (0.0f)
 #endif
 
 /**

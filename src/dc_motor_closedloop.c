@@ -57,6 +57,17 @@ float dc_motor_closedloop_update(dc_motor_closedloop_t *cl, float dt)
         return 0.0f;
     }
 
+    if (cl->setpoint_raw == 0.0f)
+    {
+        dc_motor_pid_reset(&cl->pid);
+        cl->setpoint_eff = 0.0f;
+        cl->output = 0.0f;
+#if DC_MOTOR_ENABLE_RAMP
+        dc_motor_ramp_reset(&cl->ramp, 0.0f);
+#endif
+        return 0.0f;
+    }
+
 #if DC_MOTOR_ENABLE_RAMP
     cl->setpoint_eff = dc_motor_ramp_update(&cl->ramp, dt);
 #else
