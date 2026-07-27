@@ -25,9 +25,9 @@
 #define STM32_MOTOR_PWM_CHANNEL       TIM_CHANNEL_2
 
 /**
- * @brief PWM resolution: ARR value configured in CubeMX (TIM1 ARR = 999).
+ * @brief PWM resolution: ARR value configured in CubeMX (TIM1 ARR = 3200).
  */
-#define STM32_MOTOR_PWM_RESOLUTION    (999u)
+#define STM32_MOTOR_PWM_RESOLUTION    (3200u)
 
 /**
  * @brief Pulses per revolution of the encoder (PPR).
