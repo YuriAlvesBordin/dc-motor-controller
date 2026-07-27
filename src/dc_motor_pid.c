@@ -1,9 +1,26 @@
+/**
+ * @file    dc_motor_pid.c
+ * @brief   PID controller implementation for closed-loop motor control.
+ */
+
 #include "dc_motor_pid.h"
 
 #if DC_MOTOR_ENABLE_CLOSEDLOOP
 
 #include <stddef.h>
 
+/**
+ * @brief Initialise a PID controller with explicit gains and limits.
+ *
+ * @param pid     Pointer to the controller state. Must not be NULL.
+ * @param kp      Proportional gain.
+ * @param ki      Integral gain (per second).
+ * @param kd      Derivative gain (per second).
+ * @param out_min Minimum output value (clamping lower bound).
+ * @param out_max Maximum output value (clamping upper bound).
+ * @return DC_MOTOR_OK on success, DC_MOTOR_ERR_NULL if pid is NULL,
+ *         or DC_MOTOR_ERR_RANGE if out_min >= out_max.
+ */
 dc_motor_status_t dc_motor_pid_init(dc_motor_pid_t *pid,
                                     float kp, float ki, float kd,
                                     float out_min, float out_max)
@@ -17,28 +34,35 @@ dc_motor_status_t dc_motor_pid_init(dc_motor_pid_t *pid,
         return DC_MOTOR_ERR_RANGE;
     }
 
-    pid->kp        = kp;
-    pid->ki        = ki;
-    pid->kd        = kd;
-    pid->out_min   = out_min;
-    pid->out_max   = out_max;
-    pid->integral  = 0.0f;
+    pid->kp = kp;
+    pid->ki = ki;
+    pid->kd = kd;
+    pid->out_min = out_min;
+    pid->out_max = out_max;
+    pid->integral = 0.0f;
     pid->prev_error = 0.0f;
     pid->prev_setpoint = 0.0f;
 #if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
     pid->prev_meas = 0.0f;
 #endif
 #if DC_MOTOR_ENABLE_PID_D_FILTER
-    pid->d_filter   = DC_MOTOR_PID_DEFAULT_D_FILTER;
+    pid->d_filter = DC_MOTOR_PID_DEFAULT_D_FILTER;
     pid->deriv_filt = 0.0f;
 #endif
 #if DC_MOTOR_ENABLE_PID_FEEDFORWARD
-    pid->kff        = DC_MOTOR_PID_DEFAULT_KFF;
+    pid->kff = DC_MOTOR_PID_DEFAULT_KFF;
     pid->kff_static = DC_MOTOR_PID_DEFAULT_KFF_STATIC;
 #endif
     return DC_MOTOR_OK;
 }
 
+/**
+ * @brief Initialise a PID controller using the default gains and limits
+ *        defined in dc_motor_config.h.
+ *
+ * @param pid Pointer to the controller state. Must not be NULL.
+ * @return DC_MOTOR_OK on success, DC_MOTOR_ERR_NULL if pid is NULL.
+ */
 dc_motor_status_t dc_motor_pid_init_default(dc_motor_pid_t *pid)
 {
     return dc_motor_pid_init(pid,
@@ -49,13 +73,22 @@ dc_motor_status_t dc_motor_pid_init_default(dc_motor_pid_t *pid)
                              DC_MOTOR_PID_DEFAULT_OUT_MAX);
 }
 
+/**
+ * @brief Reset the controller state (integral and derivative memories).
+ *
+ * @details Useful when switching setpoint stepwise or when re-enabling the
+ *          controller after being idle. Gains and limits are preserved.
+ *
+ * @param pid Pointer to the controller state. Must not be NULL.
+ * @return DC_MOTOR_OK on success, DC_MOTOR_ERR_NULL if pid is NULL.
+ */
 dc_motor_status_t dc_motor_pid_reset(dc_motor_pid_t *pid)
 {
     if (pid == NULL)
     {
         return DC_MOTOR_ERR_NULL;
     }
-    pid->integral   = 0.0f;
+    pid->integral = 0.0f;
     pid->prev_error = 0.0f;
 #if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
     pid->prev_meas = 0.0f;
@@ -63,12 +96,18 @@ dc_motor_status_t dc_motor_pid_reset(dc_motor_pid_t *pid)
 #if DC_MOTOR_ENABLE_PID_D_FILTER
     pid->deriv_filt = 0.0f;
 #endif
-    /* Feed-forward gains are NOT reset here: kff/kff_static are tuning
-     * parameters, not transient state, so they persist across resets
-     * just like kp/ki/kd do. */
     return DC_MOTOR_OK;
 }
 
+/**
+ * @brief Update gains at runtime without resetting the state.
+ *
+ * @param pid Pointer to the controller state. Must not be NULL.
+ * @param kp  New proportional gain.
+ * @param ki  New integral gain.
+ * @param kd  New derivative gain.
+ * @return DC_MOTOR_OK on success, DC_MOTOR_ERR_NULL if pid is NULL.
+ */
 dc_motor_status_t dc_motor_pid_tune(dc_motor_pid_t *pid,
                                     float kp, float ki, float kd)
 {
@@ -83,6 +122,14 @@ dc_motor_status_t dc_motor_pid_tune(dc_motor_pid_t *pid,
 }
 
 #if DC_MOTOR_ENABLE_PID_FEEDFORWARD
+/**
+ * @brief Update feed-forward gains at runtime.
+ *
+ * @param pid        Pointer to the controller state. Must not be NULL.
+ * @param kff        Velocity feed-forward gain.
+ * @param kff_static Static feed-forward offset (applied when setpoint != 0).
+ * @return DC_MOTOR_OK on success, DC_MOTOR_ERR_NULL if pid is NULL.
+ */
 dc_motor_status_t dc_motor_pid_set_feedforward(dc_motor_pid_t *pid,
                                                float kff, float kff_static)
 {
@@ -90,12 +137,22 @@ dc_motor_status_t dc_motor_pid_set_feedforward(dc_motor_pid_t *pid,
     {
         return DC_MOTOR_ERR_NULL;
     }
-    pid->kff        = kff;
+    pid->kff = kff;
     pid->kff_static = kff_static;
     return DC_MOTOR_OK;
 }
 #endif
 
+/**
+ * @brief Compute one PID output sample.
+ *
+ * @param pid       Pointer to the controller state. Must not be NULL.
+ * @param setpoint  Desired process value.
+ * @param measured  Current process value (from the host's sensor).
+ * @param dt        Time elapsed since the last update, in seconds. Must be > 0.
+ * @return The clamped controller output in the range [out_min, out_max].
+ *         If pid is NULL or dt <= 0 the function returns 0.0f.
+ */
 float dc_motor_pid_update(dc_motor_pid_t *pid,
                           float setpoint, float measured, float dt)
 {
@@ -112,14 +169,14 @@ float dc_motor_pid_update(dc_motor_pid_t *pid,
         return 0.0f;
     }
 
-    error  = setpoint - measured;
+    error = setpoint - measured;
 
     if (setpoint != pid->prev_setpoint)
     {
         pid->prev_error = error;
-    #if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
+#if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
         pid->prev_meas = measured;
-    #endif
+#endif
     }
     pid->prev_setpoint = setpoint;
 
@@ -167,30 +224,27 @@ float dc_motor_pid_update(dc_motor_pid_t *pid,
 
 #if DC_MOTOR_ENABLE_PID_ANTI_WINDUP
     {
-        /* Conditional integration anti-windup: only clamp the integral when
-         * the output is saturated AND the integral is pulling in the same
-         * direction as the saturation (true windup condition).
-         * ff_term is included here since it's part of the total output the
-         * motor sees, and must be accounted for when back-solving integral. */
         float i_contribution = pid->ki * pid->integral;
-        float unclamped      = p_term + i_contribution + d_term + ff_term;
+        float unclamped = p_term + i_contribution + d_term + ff_term;
 
         if ((unclamped > pid->out_max) && (i_contribution > 0.0f))
         {
-            if (pid->ki > 0.0f){
+            if (pid->ki > 0.0f)
+            {
                 pid->integral = (pid->out_max - p_term - d_term - ff_term) / pid->ki;
             }
         }
         else if ((unclamped < pid->out_min) && (i_contribution < 0.0f))
         {
-            if (pid->ki > 0.0f){
+            if (pid->ki > 0.0f)
+            {
                 pid->integral = (pid->out_min - p_term - d_term - ff_term) / pid->ki;
             }
         }
     }
 #endif
 
-    i_term     = pid->ki * pid->integral;
+    i_term = pid->ki * pid->integral;
     raw_output = p_term + i_term + d_term + ff_term;
 
     clamped_output = raw_output;

@@ -1,9 +1,21 @@
+/**
+ * @file    dc_motor_closedloop.c
+ * @brief   Closed-loop PID mode implementation.
+ */
+
 #include "dc_motor_closedloop.h"
 
 #if DC_MOTOR_ENABLE_CLOSEDLOOP
 
 #include <stddef.h>
 
+/**
+ * @brief Initialise a closed-loop controller with default PID gains and
+ *        ramp limits.
+ *
+ * @param cl Pointer to the closed-loop state. Must not be NULL.
+ * @return DC_MOTOR_OK on success, DC_MOTOR_ERR_NULL if cl is NULL.
+ */
 dc_motor_status_t dc_motor_closedloop_init(dc_motor_closedloop_t *cl)
 {
     if (cl == NULL)
@@ -23,6 +35,17 @@ dc_motor_status_t dc_motor_closedloop_init(dc_motor_closedloop_t *cl)
     return DC_MOTOR_OK;
 }
 
+/**
+ * @brief Command a new setpoint.
+ *
+ * @details The setpoint is stored as-is. When a ramp is enabled the
+ *          effective setpoint fed to the PID slews towards this value on
+ *          subsequent calls to dc_motor_closedloop_update().
+ *
+ * @param cl       Pointer to the closed-loop state. Must not be NULL.
+ * @param setpoint Desired process value.
+ * @return DC_MOTOR_OK on success, DC_MOTOR_ERR_NULL if cl is NULL.
+ */
 dc_motor_status_t dc_motor_closedloop_set_setpoint(dc_motor_closedloop_t *cl,
                                                    float setpoint)
 {
@@ -39,6 +62,13 @@ dc_motor_status_t dc_motor_closedloop_set_setpoint(dc_motor_closedloop_t *cl,
     return DC_MOTOR_OK;
 }
 
+/**
+ * @brief Push the latest measured process value into the controller.
+ *
+ * @param cl       Pointer to the closed-loop state. Must not be NULL.
+ * @param measured Latest reading from the host's sensor.
+ * @return DC_MOTOR_OK on success, DC_MOTOR_ERR_NULL if cl is NULL.
+ */
 dc_motor_status_t dc_motor_closedloop_set_measured(dc_motor_closedloop_t *cl,
                                                    float measured)
 {
@@ -50,6 +80,19 @@ dc_motor_status_t dc_motor_closedloop_set_measured(dc_motor_closedloop_t *cl,
     return DC_MOTOR_OK;
 }
 
+/**
+ * @brief Compute one closed-loop output sample.
+ *
+ * @details The ramp is advanced first, then the PID is evaluated against
+ *          the (possibly slewed) effective setpoint and the most recently
+ *          pushed measured value. The dt argument must match
+ *          DC_MOTOR_CONTROL_PERIOD_SEC.
+ *
+ * @param cl Pointer to the closed-loop state. Must not be NULL.
+ * @param dt Time elapsed since the last update, in seconds. Must be > 0.
+ * @return The updated output level in percent. Returns 0.0f if cl is NULL
+ *         or dt <= 0.
+ */
 float dc_motor_closedloop_update(dc_motor_closedloop_t *cl, float dt)
 {
     if ((cl == NULL) || (dt <= 0.0f))
@@ -81,6 +124,15 @@ float dc_motor_closedloop_update(dc_motor_closedloop_t *cl, float dt)
     return cl->output;
 }
 
+/**
+ * @brief Reset the closed-loop state (PID + ramp).
+ *
+ * @details Gains and limits are preserved. The effective setpoint is
+ *          forced to the current raw setpoint so no transient is triggered.
+ *
+ * @param cl Pointer to the closed-loop state. Must not be NULL.
+ * @return DC_MOTOR_OK on success, DC_MOTOR_ERR_NULL if cl is NULL.
+ */
 dc_motor_status_t dc_motor_closedloop_reset(dc_motor_closedloop_t *cl)
 {
     if (cl == NULL)
@@ -96,6 +148,15 @@ dc_motor_status_t dc_motor_closedloop_reset(dc_motor_closedloop_t *cl)
     return DC_MOTOR_OK;
 }
 
+/**
+ * @brief Read-only accessor for the PID sub-state.
+ *
+ * @details Allows the host to retune the controller at runtime using
+ *          dc_motor_pid_tune() without exposing the full struct.
+ *
+ * @param cl Pointer to the closed-loop state.
+ * @return Pointer to the embedded PID, or NULL if cl is NULL.
+ */
 dc_motor_pid_t *dc_motor_closedloop_get_pid(dc_motor_closedloop_t *cl)
 {
     if (cl == NULL)
@@ -105,6 +166,12 @@ dc_motor_pid_t *dc_motor_closedloop_get_pid(dc_motor_closedloop_t *cl)
     return &cl->pid;
 }
 
+/**
+ * @brief Return the effective setpoint (after the ramp).
+ *
+ * @param cl Pointer to the closed-loop state.
+ * @return The effective setpoint, or 0.0f if cl is NULL.
+ */
 float dc_motor_closedloop_get_setpoint(const dc_motor_closedloop_t *cl)
 {
     if (cl == NULL)
@@ -114,6 +181,12 @@ float dc_motor_closedloop_get_setpoint(const dc_motor_closedloop_t *cl)
     return cl->setpoint_eff;
 }
 
+/**
+ * @brief Return the most recent PID output.
+ *
+ * @param cl Pointer to the closed-loop state.
+ * @return The output level in percent, or 0.0f if cl is NULL.
+ */
 float dc_motor_closedloop_get_output(const dc_motor_closedloop_t *cl)
 {
     if (cl == NULL)
