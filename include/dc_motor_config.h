@@ -59,6 +59,19 @@
 #endif
 
 /**
+ * @brief Enable feed-forward control in the PID controller.
+ *
+ * @details Feed-forward terms are used to improve the controller's response
+ *          to setpoint changes by providing a direct path from the setpoint
+ *          to the output.
+ */
+#ifndef DC_MOTOR_ENABLE_PID_FEEDFORWARD
+#define DC_MOTOR_ENABLE_PID_FEEDFORWARD 1
+#define DC_MOTOR_PID_DEFAULT_KFF          0.01f
+#define DC_MOTOR_PID_DEFAULT_KFF_STATIC   0.1f
+#endif
+
+/**
  * @brief Enable derivative-term low-pass filtering.
  *
  * @details Reduces measurement-noise amplification of the D term.
@@ -102,14 +115,14 @@
  * @brief Default proportional gain (Kp).
  */
 #ifndef DC_MOTOR_PID_DEFAULT_KP
-#define DC_MOTOR_PID_DEFAULT_KP            (0.9f)
+#define DC_MOTOR_PID_DEFAULT_KP            (0.5f)
 #endif
 
 /**
  * @brief Default integral gain (Ki, per second).
  */
 #ifndef DC_MOTOR_PID_DEFAULT_KI
-#define DC_MOTOR_PID_DEFAULT_KI            (0.35f)
+#define DC_MOTOR_PID_DEFAULT_KI            (1.0f)
 #endif
 
 /**
@@ -126,14 +139,14 @@
  *          Only used when DC_MOTOR_ENABLE_PID_D_FILTER is 1.
  */
 #ifndef DC_MOTOR_PID_DEFAULT_D_FILTER
-#define DC_MOTOR_PID_DEFAULT_D_FILTER      (0.1f)
+#define DC_MOTOR_PID_DEFAULT_D_FILTER      (0.01f)
 #endif
 
 /**
  * @brief Default PID output lower bound (percent).
  */
 #ifndef DC_MOTOR_PID_DEFAULT_OUT_MIN
-#define DC_MOTOR_PID_DEFAULT_OUT_MIN       (0.0f)
+#define DC_MOTOR_PID_DEFAULT_OUT_MIN       (25.0f)
 #endif
 
 /**

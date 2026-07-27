@@ -36,6 +36,7 @@ typedef struct
     float out_max;   /**< Upper saturation limit of the output.                */
     float integral;  /**< Accumulated integral term.                           */
     float prev_error;/**< Error sample from the previous update.               */
+    float prev_setpoint;   /* tracks setpoint for step detection */
 #if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
     float prev_meas; /**< Measured value from the previous update.             */
 #endif
@@ -43,8 +44,12 @@ typedef struct
     float d_filter;  /**< Derivative low-pass coefficient (0..1).              */
     float deriv_filt;/**< Filtered derivative state.                           */
 #endif
+#if DC_MOTOR_ENABLE_PID_FEEDFORWARD
+    float kff;         /**< Velocity feed-forward gain (output per unit setpoint). */
+    float kff_static;  /**< Static feed-forward offset, applied when setpoint != 0
+                             (helps overcome stiction/stall friction on startup). */
+#endif
 } dc_motor_pid_t;
-
 /**
  * @brief Initialise a PID controller with explicit gains and limits.
  *
@@ -105,6 +110,19 @@ float dc_motor_pid_update(dc_motor_pid_t *pid,
  */
 dc_motor_status_t dc_motor_pid_tune(dc_motor_pid_t *pid,
                                     float kp, float ki, float kd);
+
+#if DC_MOTOR_ENABLE_PID_FEEDFORWARD
+/**
+ * @brief Update feed-forward gains at runtime.
+ *
+ * @param pid        Pointer to the controller state. Must not be NULL.
+ * @param kff        Velocity feed-forward gain.
+ * @param kff_static Static feed-forward offset (applied when setpoint != 0).
+ * @return DC_MOTOR_OK on success, DC_MOTOR_ERR_NULL if pid is NULL.
+ */
+dc_motor_status_t dc_motor_pid_set_feedforward(dc_motor_pid_t *pid,
+                                               float kff, float kff_static);
+#endif
 
 #else
 

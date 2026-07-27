@@ -24,12 +24,17 @@ dc_motor_status_t dc_motor_pid_init(dc_motor_pid_t *pid,
     pid->out_max   = out_max;
     pid->integral  = 0.0f;
     pid->prev_error = 0.0f;
+    pid->prev_setpoint = 0.0f;
 #if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
     pid->prev_meas = 0.0f;
 #endif
 #if DC_MOTOR_ENABLE_PID_D_FILTER
     pid->d_filter   = DC_MOTOR_PID_DEFAULT_D_FILTER;
     pid->deriv_filt = 0.0f;
+#endif
+#if DC_MOTOR_ENABLE_PID_FEEDFORWARD
+    pid->kff        = DC_MOTOR_PID_DEFAULT_KFF;
+    pid->kff_static = DC_MOTOR_PID_DEFAULT_KFF_STATIC;
 #endif
     return DC_MOTOR_OK;
 }
@@ -58,6 +63,9 @@ dc_motor_status_t dc_motor_pid_reset(dc_motor_pid_t *pid)
 #if DC_MOTOR_ENABLE_PID_D_FILTER
     pid->deriv_filt = 0.0f;
 #endif
+    /* Feed-forward gains are NOT reset here: kff/kff_static are tuning
+     * parameters, not transient state, so they persist across resets
+     * just like kp/ki/kd do. */
     return DC_MOTOR_OK;
 }
 
@@ -74,6 +82,20 @@ dc_motor_status_t dc_motor_pid_tune(dc_motor_pid_t *pid,
     return DC_MOTOR_OK;
 }
 
+#if DC_MOTOR_ENABLE_PID_FEEDFORWARD
+dc_motor_status_t dc_motor_pid_set_feedforward(dc_motor_pid_t *pid,
+                                               float kff, float kff_static)
+{
+    if (pid == NULL)
+    {
+        return DC_MOTOR_ERR_NULL;
+    }
+    pid->kff        = kff;
+    pid->kff_static = kff_static;
+    return DC_MOTOR_OK;
+}
+#endif
+
 float dc_motor_pid_update(dc_motor_pid_t *pid,
                           float setpoint, float measured, float dt)
 {
@@ -81,6 +103,7 @@ float dc_motor_pid_update(dc_motor_pid_t *pid,
     float p_term;
     float i_term;
     float d_term;
+    float ff_term;
     float raw_output;
     float clamped_output;
 
@@ -90,6 +113,16 @@ float dc_motor_pid_update(dc_motor_pid_t *pid,
     }
 
     error  = setpoint - measured;
+
+    if (setpoint != pid->prev_setpoint)
+    {
+        pid->prev_error = error;
+    #if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
+        pid->prev_meas = measured;
+    #endif
+    }
+    pid->prev_setpoint = setpoint;
+
     p_term = pid->kp * error;
 
 #if DC_MOTOR_PID_DERIV_ON_MEASUREMENT
@@ -116,6 +149,20 @@ float dc_motor_pid_update(dc_motor_pid_t *pid,
 #endif
 #endif
 
+#if DC_MOTOR_ENABLE_PID_FEEDFORWARD
+    ff_term = pid->kff * setpoint;
+    if (setpoint > 0.0f)
+    {
+        ff_term += pid->kff_static;
+    }
+    else if (setpoint < 0.0f)
+    {
+        ff_term -= pid->kff_static;
+    }
+#else
+    ff_term = 0.0f;
+#endif
+
     pid->integral += error * dt;
 
 #if DC_MOTOR_ENABLE_PID_ANTI_WINDUP
@@ -123,24 +170,28 @@ float dc_motor_pid_update(dc_motor_pid_t *pid,
         /* Conditional integration anti-windup: only clamp the integral when
          * the output is saturated AND the integral is pulling in the same
          * direction as the saturation (true windup condition).
-         * This prevents the integral from being frozen at out_min when the
-         * motor stalls and the controller needs to keep increasing the duty. */
+         * ff_term is included here since it's part of the total output the
+         * motor sees, and must be accounted for when back-solving integral. */
         float i_contribution = pid->ki * pid->integral;
-        float unclamped      = p_term + i_contribution + d_term;
+        float unclamped      = p_term + i_contribution + d_term + ff_term;
 
         if ((unclamped > pid->out_max) && (i_contribution > 0.0f))
         {
-            pid->integral = (pid->out_max - p_term - d_term) / pid->ki;
+            if (pid->ki > 0.0f){
+                pid->integral = (pid->out_max - p_term - d_term - ff_term) / pid->ki;
+            }
         }
         else if ((unclamped < pid->out_min) && (i_contribution < 0.0f))
         {
-            pid->integral = (pid->out_min - p_term - d_term) / pid->ki;
+            if (pid->ki > 0.0f){
+                pid->integral = (pid->out_min - p_term - d_term - ff_term) / pid->ki;
+            }
         }
     }
 #endif
 
     i_term     = pid->ki * pid->integral;
-    raw_output = p_term + i_term + d_term;
+    raw_output = p_term + i_term + d_term + ff_term;
 
     clamped_output = raw_output;
     if (clamped_output > pid->out_max)
