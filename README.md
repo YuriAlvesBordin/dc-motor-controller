@@ -15,7 +15,8 @@ A portable, HAL-agnostic C library for DC motor control, designed for resource-c
   - Anti-windup clamping
   - Derivative-on-measurement (eliminates derivative kick)
   - Configurable derivative low-pass filter
-  - Runtime gain tuning via `dc_motor_pid_tune()`
+  - **Feed-forward control** — velocity feed-forward (kff) + static offset (kff_static) for improved setpoint tracking and stiction compensation
+  - Runtime gain tuning via `dc_motor_pid_tune()` and `dc_motor_pid_set_feedforward()`
 - **Acceleration / deceleration ramp** — shared by both modes, independent accel and decel rates, correct bidirectional behaviour
 - **Hardware watchdog** — forces output to zero if the control loop stalls
 - **Zero dynamic memory allocation** — all state lives in host-declared `dc_motor_t` structs
@@ -127,6 +128,7 @@ All options are defined in `include/dc_motor_config.h` and can be overridden via
 | `DC_MOTOR_ENABLE_CLOSEDLOOP` | `1` | Enable closed-loop PID mode |
 | `DC_MOTOR_ENABLE_RAMP` | `0` | Enable slew-rate limiter (shared by both modes) |
 | `DC_MOTOR_ENABLE_PID_ANTI_WINDUP` | `1` | Enable integrator anti-windup clamping |
+| `DC_MOTOR_ENABLE_PID_FEEDFORWARD` | `1` | Enable PID feed-forward control (kff, kff_static) |
 | `DC_MOTOR_ENABLE_PID_D_FILTER` | `1` | Enable derivative low-pass filter |
 | `DC_MOTOR_PID_DERIV_ON_MEASUREMENT` | `1` | Compute D term on measurement instead of error |
 | `DC_MOTOR_ENABLE_WATCHDOG` | `1` | Enable control-loop watchdog |
@@ -141,11 +143,13 @@ All options are defined in `include/dc_motor_config.h` and can be overridden via
 
 | Macro | Default | Description |
 |---|---|---|
-| `DC_MOTOR_PID_DEFAULT_KP` | `1.0` | Proportional gain |
-| `DC_MOTOR_PID_DEFAULT_KI` | `0.5` | Integral gain (per second) |
-| `DC_MOTOR_PID_DEFAULT_KD` | `0.0` | Derivative gain (per second) |
-| `DC_MOTOR_PID_DEFAULT_D_FILTER` | `0.1` | D-term EMA filter coefficient (0 = max smoothing) |
-| `DC_MOTOR_PID_DEFAULT_OUT_MIN` | `-100.0` | Output lower bound (percent) |
+| `DC_MOTOR_PID_DEFAULT_KP` | `0.5` | Proportional gain |
+| `DC_MOTOR_PID_DEFAULT_KI` | `1.0` | Integral gain (per second) |
+| `DC_MOTOR_PID_DEFAULT_KD` | `0.1` | Derivative gain (per second) |
+| `DC_MOTOR_PID_DEFAULT_D_FILTER` | `0.01` | D-term EMA filter coefficient (0 = max smoothing) |
+| `DC_MOTOR_PID_DEFAULT_KFF` | `0.01` | Velocity feed-forward gain (output per unit setpoint) |
+| `DC_MOTOR_PID_DEFAULT_KFF_STATIC` | `0.1` | Static feed-forward offset (overcomes stiction) |
+| `DC_MOTOR_PID_DEFAULT_OUT_MIN` | `25.0` | Output lower bound (percent) |
 | `DC_MOTOR_PID_DEFAULT_OUT_MAX` | `100.0` | Output upper bound (percent) |
 
 ### Ramp Defaults
@@ -186,6 +190,10 @@ dc_motor_status_t dc_motor_set_measured(dc_motor_t *m, float measured);
 float             dc_motor_update(dc_motor_t *m, float dt);
 dc_motor_status_t dc_motor_tick(dc_motor_t *m, uint32_t elapsed_ms);
 dc_motor_status_t dc_motor_feed_watchdog(dc_motor_t *m);
+
+/* PID runtime tuning (closed-loop mode only) */
+dc_motor_status_t dc_motor_pid_tune(dc_motor_t *m, float kp, float ki, float kd);
+dc_motor_status_t dc_motor_pid_set_feedforward(dc_motor_t *m, float kff, float kff_static);
 ```
 
 ### Getters
@@ -231,7 +239,7 @@ The `hal/stm32/` directory provides a ready-to-use integration for STM32 microco
 /* Motor 0 peripherals */
 #define STM32_MOTOR0_PWM_TIM       (&htim1)
 #define STM32_MOTOR0_PWM_CHANNEL   TIM_CHANNEL_1
-#define STM32_MOTOR0_PWM_RESOLUTION (1000u)   /* ARR value from CubeMX */
+#define STM32_MOTOR0_PWM_RESOLUTION (3200u)   /* ARR value from CubeMX */
 #define STM32_MOTOR0_ENCODER_TIM   (&htim3)
 #define STM32_MOTOR0_ENCODER_PPR   (10u)      /* Encoder pulses per revolution */
 ```
