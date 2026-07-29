@@ -88,6 +88,13 @@ dc_motor_status_t dc_motor_closedloop_set_measured(dc_motor_closedloop_t *cl,
  *          pushed measured value. The dt argument must match
  *          DC_MOTOR_CONTROL_PERIOD_SEC.
  *
+ *          After the PID output is computed, the physical motor dead-band
+ *          is enforced: if the raw PID output is positive but below
+ *          DC_MOTOR_PID_DEADBAND the PWM sent to the motor is forced to
+ *          0.0f (motor coasts). The PID integrator is unaffected so it
+ *          can wind-up naturally through the dead-band region without the
+ *          controller losing track of the process value.
+ *
  * @param cl Pointer to the closed-loop state. Must not be NULL.
  * @param dt Time elapsed since the last update, in seconds. Must be > 0.
  * @return The updated output level in percent. Returns 0.0f if cl is NULL
@@ -95,6 +102,8 @@ dc_motor_status_t dc_motor_closedloop_set_measured(dc_motor_closedloop_t *cl,
  */
 float dc_motor_closedloop_update(dc_motor_closedloop_t *cl, float dt)
 {
+    float pid_out;
+
     if ((cl == NULL) || (dt <= 0.0f))
     {
         return 0.0f;
@@ -117,10 +126,30 @@ float dc_motor_closedloop_update(dc_motor_closedloop_t *cl, float dt)
     cl->setpoint_eff = cl->setpoint_raw;
 #endif
 
-    cl->output = dc_motor_pid_update(&cl->pid,
-                                     cl->setpoint_eff,
-                                     cl->measured,
-                                     dt);
+    pid_out = dc_motor_pid_update(&cl->pid,
+                                  cl->setpoint_eff,
+                                  cl->measured,
+                                  dt);
+
+    /*
+     * Physical dead-band: the motor does not spin below DC_MOTOR_PID_DEADBAND
+     * percent PWM. Map the PID output to 0 in that region so the hardware
+     * driver does not try to drive a stalled motor, but do NOT clamp the PID
+     * state — the integrator must be free to accumulate through this region.
+     */
+#if (DC_MOTOR_PID_DEADBAND > 0.0f)
+    if ((pid_out > 0.0f) && (pid_out < DC_MOTOR_PID_DEADBAND))
+    {
+        cl->output = 0.0f;
+    }
+    else
+    {
+        cl->output = pid_out;
+    }
+#else
+    cl->output = pid_out;
+#endif
+
     return cl->output;
 }
 
