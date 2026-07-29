@@ -222,18 +222,31 @@ float dc_motor_pid_update(dc_motor_pid_t *pid,
 
     /*
      * Anti-windup: saturation-freeze.
-     * Compute the tentative output using the current integral (before
-     * accumulating). Only accumulate if the output would stay within bounds.
-     * This avoids the sign-check pitfall of back-calculation: when P alone
-     * saturates the output the integral is never driven negative, so there
-     * is no delayed windup when it unwinds back through zero.
+     *
+     * Only block integral accumulation when the output is genuinely
+     * saturated at the HIGH end (> out_max) or the LOW end (< -out_max,
+     * i.e. deeply negative — not merely near zero).
+     *
+     * Using out_min (= 0.0f) as the lower freeze threshold is wrong for a
+     * unidirectional motor: in steady state with a small positive error the
+     * tentative output can momentarily dip to 0 or slightly below due to the
+     * D term or FF, which would incorrectly freeze the integral and let the
+     * output drop to zero (motor stops).
+     *
+     * Solution: freeze only on |output| > out_max saturation. The output
+     * clamp below still enforces [out_min, out_max] on what is sent to the
+     * motor; the integrator is just allowed to go slightly negative
+     * internally so it can recover quickly without the motor cutting out.
      */
 #if DC_MOTOR_ENABLE_PID_ANTI_WINDUP
     {
         float tentative = p_term + pid->ki * pid->integral + d_term + ff_term;
-        if ((tentative < pid->out_max) && (tentative > pid->out_min))
+        if (tentative < pid->out_max)
         {
-            pid->integral += error * dt;
+            if (tentative > -(pid->out_max))
+            {
+                pid->integral += error * dt;
+            }
         }
     }
 #else
