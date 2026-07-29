@@ -220,28 +220,24 @@ float dc_motor_pid_update(dc_motor_pid_t *pid,
     ff_term = 0.0f;
 #endif
 
-    pid->integral += error * dt;
-
+    /*
+     * Anti-windup: saturation-freeze.
+     * Compute the tentative output using the current integral (before
+     * accumulating). Only accumulate if the output would stay within bounds.
+     * This avoids the sign-check pitfall of back-calculation: when P alone
+     * saturates the output the integral is never driven negative, so there
+     * is no delayed windup when it unwinds back through zero.
+     */
 #if DC_MOTOR_ENABLE_PID_ANTI_WINDUP
     {
-        float i_contribution = pid->ki * pid->integral;
-        float unclamped = p_term + i_contribution + d_term + ff_term;
-
-        if ((unclamped > pid->out_max) && (i_contribution > 0.0f))
+        float tentative = p_term + pid->ki * pid->integral + d_term + ff_term;
+        if ((tentative < pid->out_max) && (tentative > pid->out_min))
         {
-            if (pid->ki > 0.0f)
-            {
-                pid->integral = (pid->out_max - p_term - d_term - ff_term) / pid->ki;
-            }
-        }
-        else if ((unclamped < pid->out_min) && (i_contribution < 0.0f))
-        {
-            if (pid->ki > 0.0f)
-            {
-                pid->integral = (pid->out_min - p_term - d_term - ff_term) / pid->ki;
-            }
+            pid->integral += error * dt;
         }
     }
+#else
+    pid->integral += error * dt;
 #endif
 
     i_term = pid->ki * pid->integral;
