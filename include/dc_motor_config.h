@@ -53,6 +53,8 @@
  * @brief Enable anti-windup clamping on the PID integrator.
  *
  * @details Only meaningful when DC_MOTOR_ENABLE_CLOSEDLOOP is 1.
+ *          The implementation uses saturation-freeze: the integral is only
+ *          accumulated when the tentative output is within [out_min, out_max].
  */
 #ifndef DC_MOTOR_ENABLE_PID_ANTI_WINDUP
 #define DC_MOTOR_ENABLE_PID_ANTI_WINDUP   1
@@ -135,18 +137,24 @@
 /**
  * @brief Default derivative low-pass filter coefficient (0..1).
  *
- * @details Lower values yield stronger smoothing.
+ * @details Lower values yield stronger smoothing. With dt=0.1s:
+ *          - 0.01f → time constant ~9.9 s  (D term effectively dead)
+ *          - 0.15f → time constant ~0.57 s (D term responsive)
  *          Only used when DC_MOTOR_ENABLE_PID_D_FILTER is 1.
  */
 #ifndef DC_MOTOR_PID_DEFAULT_D_FILTER
-#define DC_MOTOR_PID_DEFAULT_D_FILTER      (0.01f)
+#define DC_MOTOR_PID_DEFAULT_D_FILTER      (0.15f)
 #endif
 
 /**
  * @brief Default PID output lower bound (percent).
+ *
+ * @details Set to 0.0f so the PID can command zero output. The physical
+ *          motor dead-band is handled separately via DC_MOTOR_PID_DEADBAND
+ *          in the closed-loop output stage, not here.
  */
 #ifndef DC_MOTOR_PID_DEFAULT_OUT_MIN
-#define DC_MOTOR_PID_DEFAULT_OUT_MIN       (25.0f)
+#define DC_MOTOR_PID_DEFAULT_OUT_MIN       (0.0f)
 #endif
 
 /**
@@ -154,6 +162,18 @@
  */
 #ifndef DC_MOTOR_PID_DEFAULT_OUT_MAX
 #define DC_MOTOR_PID_DEFAULT_OUT_MAX       ( 100.0f)
+#endif
+
+/**
+ * @brief Physical motor dead-band in percent PWM.
+ *
+ * @details The motor does not spin below this PWM duty cycle. Applied in
+ *          dc_motor_closedloop_update() AFTER the PID computes its output,
+ *          so the PID integrator is not affected by the dead-band.
+ *          Set to 0.0f to disable.
+ */
+#ifndef DC_MOTOR_PID_DEADBAND
+#define DC_MOTOR_PID_DEADBAND              (25.0f)
 #endif
 
 /**
