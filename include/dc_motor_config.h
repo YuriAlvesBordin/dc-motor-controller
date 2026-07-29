@@ -54,7 +54,7 @@
  *
  * @details Only meaningful when DC_MOTOR_ENABLE_CLOSEDLOOP is 1.
  *          The implementation uses saturation-freeze: the integral is only
- *          accumulated when the tentative output is within [out_min, out_max].
+ *          accumulated when the tentative output is within [-out_max, out_max].
  */
 #ifndef DC_MOTOR_ENABLE_PID_ANTI_WINDUP
 #define DC_MOTOR_ENABLE_PID_ANTI_WINDUP   1
@@ -115,31 +115,35 @@
 
 /**
  * @brief Default proportional gain (Kp).
+ *
+ * @details Tuned by FOPDT model identification + ITAE minimisation
+ *          (differential_evolution) targeting zero overshoot and
+ *          rise time <= 5 s across setpoints 30-120 RPM.
  */
 #ifndef DC_MOTOR_PID_DEFAULT_KP
-#define DC_MOTOR_PID_DEFAULT_KP            (0.5f)
+#define DC_MOTOR_PID_DEFAULT_KP            (1.752f)
 #endif
 
 /**
  * @brief Default integral gain (Ki, per second).
  */
 #ifndef DC_MOTOR_PID_DEFAULT_KI
-#define DC_MOTOR_PID_DEFAULT_KI            (1.0f)
+#define DC_MOTOR_PID_DEFAULT_KI            (0.640f)
 #endif
 
 /**
  * @brief Default derivative gain (Kd, per second).
  */
 #ifndef DC_MOTOR_PID_DEFAULT_KD
-#define DC_MOTOR_PID_DEFAULT_KD            (0.1f)
+#define DC_MOTOR_PID_DEFAULT_KD            (0.362f)
 #endif
 
 /**
  * @brief Default derivative low-pass filter coefficient (0..1).
  *
  * @details Lower values yield stronger smoothing. With dt=0.1s:
- *          - 0.01f → time constant ~9.9 s  (D term effectively dead)
- *          - 0.15f → time constant ~0.57 s (D term responsive)
+ *          - 0.01f -> time constant ~9.9 s  (D term effectively dead)
+ *          - 0.15f -> time constant ~0.57 s (D term responsive)
  *          Only used when DC_MOTOR_ENABLE_PID_D_FILTER is 1.
  */
 #ifndef DC_MOTOR_PID_DEFAULT_D_FILTER
@@ -188,7 +192,7 @@
 /**
  * @brief Default deceleration limit in percent-per-second.
  *
- * @details Applied when decreasing |output| (braking).
+ * @details Applied when decreasing |output| (braking)
  */
 #ifndef DC_MOTOR_RAMP_DEFAULT_DECEL
 #define DC_MOTOR_RAMP_DEFAULT_DECEL        (400.0f)
