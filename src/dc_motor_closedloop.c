@@ -88,15 +88,16 @@ dc_motor_status_t dc_motor_closedloop_set_measured(dc_motor_closedloop_t *cl,
  *          pushed measured value. The dt argument must match
  *          DC_MOTOR_CONTROL_PERIOD_SEC.
  *
- *          After the PID output is computed, the physical motor dead-band
- *          is enforced: if the raw PID output is positive but below
- *          DC_MOTOR_PID_DEADBAND the PWM sent to the motor is forced to
- *          0.0f (motor coasts). The PID integrator is unaffected so it
- *          can wind-up naturally through the dead-band region without the
- *          controller losing track of the process value.
+ *          Physical dead-band mapping (snap-to-minimum):
  *
- *          Note: DC_MOTOR_PID_DEADBAND is a float constant, so the guard
- *          is a regular if() — the compiler removes the dead branch at -Os.
+ *            pid_out == 0            -> output = 0   (motor off)
+ *            0 < pid_out < DEADBAND  -> output = DEADBAND (snap to min)
+ *            pid_out >= DEADBAND     -> output = pid_out  (normal)
+ *
+ *          Snapping to the minimum instead of zero avoids chatter: if the
+ *          steady-state operating point for a low setpoint falls inside the
+ *          dead-band the motor would otherwise pulse on/off every cycle.
+ *          The PID integrator is left untouched in all cases.
  *
  * @param cl Pointer to the closed-loop state. Must not be NULL.
  * @param dt Time elapsed since the last update, in seconds. Must be > 0.
@@ -135,17 +136,28 @@ float dc_motor_closedloop_update(dc_motor_closedloop_t *cl, float dt)
                                   dt);
 
     /*
-     * Physical dead-band enforcement.
-     * DC_MOTOR_PID_DEADBAND is a float literal, so this MUST be a runtime
-     * if(), not a #if. With -Os the compiler constant-folds the comparison
-     * and removes the dead branch when DC_MOTOR_PID_DEADBAND is 0.
-     * The PID internal state (integral) is intentionally left untouched so
-     * the controller can accumulate freely through the dead-band region.
+     * Snap-to-minimum dead-band:
+     *   - pid_out == 0           : motor off (setpoint is zero, handled above,
+     *                              but guard here for safety)
+     *   - 0 < pid_out < DEADBAND : snap up to DEADBAND so the motor always
+     *                              receives a duty it can execute; prevents
+     *                              chatter when the steady-state point sits
+     *                              inside the dead-band (common at low RPM).
+     *   - pid_out >= DEADBAND    : pass through unchanged.
+     *
+     * DC_MOTOR_PID_DEADBAND is a float literal — runtime if(), not #if.
+     * The compiler folds the constant comparison away at -Os.
      */
-    if ((DC_MOTOR_PID_DEADBAND > 0.0f) &&
-        (pid_out > 0.0f) && (pid_out < DC_MOTOR_PID_DEADBAND))
+    if (DC_MOTOR_PID_DEADBAND > 0.0f)
     {
-        cl->output = 0.0f;
+        if ((pid_out > 0.0f) && (pid_out < DC_MOTOR_PID_DEADBAND))
+        {
+            cl->output = DC_MOTOR_PID_DEADBAND;
+        }
+        else
+        {
+            cl->output = pid_out;
+        }
     }
     else
     {
