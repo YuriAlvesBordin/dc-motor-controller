@@ -95,6 +95,9 @@ dc_motor_status_t dc_motor_closedloop_set_measured(dc_motor_closedloop_t *cl,
  *          can wind-up naturally through the dead-band region without the
  *          controller losing track of the process value.
  *
+ *          Note: DC_MOTOR_PID_DEADBAND is a float constant, so the guard
+ *          is a regular if() — the compiler removes the dead branch at -Os.
+ *
  * @param cl Pointer to the closed-loop state. Must not be NULL.
  * @param dt Time elapsed since the last update, in seconds. Must be > 0.
  * @return The updated output level in percent. Returns 0.0f if cl is NULL
@@ -132,13 +135,15 @@ float dc_motor_closedloop_update(dc_motor_closedloop_t *cl, float dt)
                                   dt);
 
     /*
-     * Physical dead-band: the motor does not spin below DC_MOTOR_PID_DEADBAND
-     * percent PWM. Map the PID output to 0 in that region so the hardware
-     * driver does not try to drive a stalled motor, but do NOT clamp the PID
-     * state — the integrator must be free to accumulate through this region.
+     * Physical dead-band enforcement.
+     * DC_MOTOR_PID_DEADBAND is a float literal, so this MUST be a runtime
+     * if(), not a #if. With -Os the compiler constant-folds the comparison
+     * and removes the dead branch when DC_MOTOR_PID_DEADBAND is 0.
+     * The PID internal state (integral) is intentionally left untouched so
+     * the controller can accumulate freely through the dead-band region.
      */
-#if (DC_MOTOR_PID_DEADBAND > 0.0f)
-    if ((pid_out > 0.0f) && (pid_out < DC_MOTOR_PID_DEADBAND))
+    if ((DC_MOTOR_PID_DEADBAND > 0.0f) &&
+        (pid_out > 0.0f) && (pid_out < DC_MOTOR_PID_DEADBAND))
     {
         cl->output = 0.0f;
     }
@@ -146,9 +151,6 @@ float dc_motor_closedloop_update(dc_motor_closedloop_t *cl, float dt)
     {
         cl->output = pid_out;
     }
-#else
-    cl->output = pid_out;
-#endif
 
     return cl->output;
 }
